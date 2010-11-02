@@ -349,8 +349,10 @@ OMXNodeInstance::OMXNodeInstance(
       mHandle(NULL),
       mObserver(observer),
       mDying(false),
+#ifndef METADATA_CAMERA_SOURCE
       mSailed(false),
       mQueriedProhibitedExtensions(false),
+#endif
       mQuirks(0),
       mBufferIDCount(0),
       mRestorePtsFailed(false),
@@ -518,7 +520,11 @@ status_t OMXNodeInstance::freeNode() {
 
 status_t OMXNodeInstance::sendCommand(
         OMX_COMMANDTYPE cmd, OMX_S32 param) {
+#ifndef METADATA_CAMERA_SOURCE
     const sp<IOMXBufferSource> bufferSource(getBufferSource());
+#else
+    const sp<IOMXBufferSource>& bufferSource(getBufferSource());
+#endif
     if (bufferSource != NULL && cmd == OMX_CommandStateSet) {
         if (param == OMX_StateIdle) {
             // Initiating transition from Executing -> Idle
@@ -536,11 +542,12 @@ status_t OMXNodeInstance::sendCommand(
     }
 
     Mutex::Autolock autoLock(mLock);
-
+#ifndef METADATA_CAMERA_SOURCE
     if (cmd == OMX_CommandStateSet) {
         // There are no configurations past first StateSet command.
         mSailed = true;
     }
+#endif
 
     // bump internal-state debug level for 2 input and output frames past a command
     {
@@ -556,6 +563,7 @@ status_t OMXNodeInstance::sendCommand(
     return StatusFromOMXError(err);
 }
 
+#ifndef METADATA_CAMERA_SOURCE
 bool OMXNodeInstance::isProhibitedIndex_l(OMX_INDEXTYPE index) {
     // these extensions can only be used from OMXNodeInstance, not by clients directly.
     static const char *restricted_extensions[] = {
@@ -596,15 +604,17 @@ bool OMXNodeInstance::isProhibitedIndex_l(OMX_INDEXTYPE index) {
 
     return mProhibitedExtensions.indexOf(index) >= 0;
 }
+#endif
 
 status_t OMXNodeInstance::getParameter(
         OMX_INDEXTYPE index, void *params, size_t /* size */) {
     Mutex::Autolock autoLock(mLock);
-
+#ifndef METADATA_CAMERA_SOURCE
     if (isProhibitedIndex_l(index)) {
         android_errorWriteLog(0x534e4554, "29422020");
         return BAD_INDEX;
     }
+#endif
 
     OMX_ERRORTYPE err = OMX_GetParameter(mHandle, index, params);
     OMX_INDEXEXTTYPE extIndex = (OMX_INDEXEXTTYPE)index;
@@ -625,10 +635,12 @@ status_t OMXNodeInstance::setParameter(
         return setMaxPtsGapUs(params, size);
     }
 
+#ifndef METADATA_CAMERA_SOURCE
     if (isProhibitedIndex_l(index)) {
         android_errorWriteLog(0x534e4554, "29422020");
         return BAD_INDEX;
     }
+#endif
 
     OMX_ERRORTYPE err = OMX_SetParameter(
             mHandle, index, const_cast<void *>(params));
@@ -640,10 +652,12 @@ status_t OMXNodeInstance::getConfig(
         OMX_INDEXTYPE index, void *params, size_t /* size */) {
     Mutex::Autolock autoLock(mLock);
 
+#ifndef METADATA_CAMERA_SOURCE
     if (isProhibitedIndex_l(index)) {
         android_errorWriteLog(0x534e4554, "29422020");
         return BAD_INDEX;
     }
+#endif
 
     OMX_ERRORTYPE err = OMX_GetConfig(mHandle, index, params);
     OMX_INDEXEXTTYPE extIndex = (OMX_INDEXEXTTYPE)index;
@@ -660,10 +674,12 @@ status_t OMXNodeInstance::setConfig(
     OMX_INDEXEXTTYPE extIndex = (OMX_INDEXEXTTYPE)index;
     CLOG_CONFIG(setConfig, "%s(%#x), %zu@%p)", asString(extIndex), index, size, params);
 
+#ifndef METADATA_CAMERA_SOURCE
     if (isProhibitedIndex_l(index)) {
         android_errorWriteLog(0x534e4554, "29422020");
         return BAD_INDEX;
     }
+#endif
 
     OMX_ERRORTYPE err = OMX_SetConfig(
             mHandle, index, const_cast<void *>(params));
@@ -679,12 +695,12 @@ status_t OMXNodeInstance::setPortMode(OMX_U32 portIndex, IOMX::PortMode mode) {
         android_errorWriteLog(0x534e4554, "31385713");
         return BAD_VALUE;
     }
-
+#ifndef METADATA_CAMERA_SOURCE
     if (mSailed || mNumPortBuffers[portIndex] > 0) {
         android_errorWriteLog(0x534e4554, "29422020");
         return INVALID_OPERATION;
     }
-
+#endif
     CLOG_CONFIG(setPortMode, "%s(%d), port %d", asString(mode), mode, portIndex);
 
     switch (mode) {
@@ -867,15 +883,19 @@ status_t OMXNodeInstance::getGraphicBufferUsage(
 
 status_t OMXNodeInstance::storeMetaDataInBuffers_l(
         OMX_U32 portIndex, OMX_BOOL enable, MetadataBufferType *type) {
+#ifndef METADATA_CAMERA_SOURCE
     if (mSailed) {
         android_errorWriteLog(0x534e4554, "29422020");
         return INVALID_OPERATION;
     }
+#endif
     if (portIndex != kPortIndexInput && portIndex != kPortIndexOutput) {
         android_errorWriteLog(0x534e4554, "26324358");
+#ifndef METADATA_CAMERA_SOURCE
         if (type != NULL) {
             *type = kMetadataBufferTypeInvalid;
         }
+#endif
         return BAD_VALUE;
     }
 
@@ -886,32 +906,40 @@ status_t OMXNodeInstance::storeMetaDataInBuffers_l(
     OMX_STRING nativeBufferName = const_cast<OMX_STRING>(
             "OMX.google.android.index.storeANWBufferInMetadata");
     MetadataBufferType negotiatedType;
+#ifndef METADATA_CAMERA_SOURCE
     MetadataBufferType requestedType = type != NULL ? *type : kMetadataBufferTypeANWBuffer;
-
+#endif
     StoreMetaDataInBuffersParams params;
     InitOMXParams(&params);
     params.nPortIndex = portIndex;
     params.bStoreMetaData = enable;
-
+#ifndef METADATA_CAMERA_SOURCE
     OMX_ERRORTYPE err =
         requestedType == kMetadataBufferTypeANWBuffer
                 ? OMX_GetExtensionIndex(mHandle, nativeBufferName, &index)
                 : OMX_ErrorUnsupportedIndex;
+#else
+    OMX_ERRORTYPE err = OMX_GetExtensionIndex(mHandle, nativeBufferName, &index);
+#endif
     OMX_ERRORTYPE xerr = err;
     if (err == OMX_ErrorNone) {
         err = OMX_SetParameter(mHandle, index, &params);
         if (err == OMX_ErrorNone) {
             name = nativeBufferName; // set name for debugging
-            negotiatedType = requestedType;
+            negotiatedType = kMetadataBufferTypeGrallocSource;
         }
     }
     if (err != OMX_ErrorNone) {
         err = OMX_GetExtensionIndex(mHandle, name, &index);
         xerr = err;
         if (err == OMX_ErrorNone) {
+#ifndef METADATA_CAMERA_SOURCE
             negotiatedType =
                 requestedType == kMetadataBufferTypeANWBuffer
                         ? kMetadataBufferTypeGrallocSource : requestedType;
+#else
+            negotiatedType = kMetadataBufferTypeGrallocSource;
+#endif
             err = OMX_SetParameter(mHandle, index, &params);
         }
         if (err == OMX_ErrorBadParameter) {
@@ -936,9 +964,14 @@ status_t OMXNodeInstance::storeMetaDataInBuffers_l(
         }
         mMetadataType[portIndex] = negotiatedType;
     }
+#ifndef METADATA_CAMERA_SOURCE
     CLOG_CONFIG(storeMetaDataInBuffers, "%s:%u %srequested %s:%d negotiated %s:%d",
             portString(portIndex), portIndex, enable ? "" : "UN",
             asString(requestedType), requestedType, asString(negotiatedType), negotiatedType);
+#else
+    CLOG_CONFIG(storeMetaDataInBuffers, "%s:%u negotiated %s:%d",
+            portString(portIndex), portIndex, asString(negotiatedType), negotiatedType);
+#endif
 
     if (type != NULL) {
         *type = negotiatedType;
@@ -951,10 +984,12 @@ status_t OMXNodeInstance::prepareForAdaptivePlayback(
         OMX_U32 portIndex, OMX_BOOL enable, OMX_U32 maxFrameWidth,
         OMX_U32 maxFrameHeight) {
     Mutex::Autolock autolock(mLock);
+#ifndef METADATA_CAMERA_SOURCE
     if (mSailed) {
         android_errorWriteLog(0x534e4554, "29422020");
         return INVALID_OPERATION;
     }
+#endif
     CLOG_CONFIG(prepareForAdaptivePlayback, "%s:%u en=%d max=%ux%u",
             portString(portIndex), portIndex, enable, maxFrameWidth, maxFrameHeight);
 
@@ -991,10 +1026,12 @@ status_t OMXNodeInstance::configureVideoTunnelMode(
         OMX_U32 portIndex, OMX_BOOL tunneled, OMX_U32 audioHwSync,
         native_handle_t **sidebandHandle) {
     Mutex::Autolock autolock(mLock);
+#ifndef METADATA_CAMERA_SOURCE
     if (mSailed) {
         android_errorWriteLog(0x534e4554, "29422020");
         return INVALID_OPERATION;
     }
+#endif
     CLOG_CONFIG(configureVideoTunnelMode, "%s:%u tun=%d sync=%u",
             portString(portIndex), portIndex, tunneled, audioHwSync);
 
@@ -1039,17 +1076,19 @@ status_t OMXNodeInstance::useBuffer(
         ALOGE("b/25884056");
         return BAD_VALUE;
     }
-
+#ifndef METADATA_CAMERA_SOURCE
     if (portIndex >= NELEM(mNumPortBuffers)) {
         return BAD_VALUE;
     }
-
+#endif
     Mutex::Autolock autoLock(mLock);
+#ifndef METADATA_CAMERA_SOURCE
     if (!mSailed) {
         ALOGE("b/35467458");
         android_errorWriteLog(0x534e4554, "35467458");
         return BAD_VALUE;
     }
+#endif
 
     switch (omxBuffer.mBufferType) {
         case OMXBuffer::kBufferTypePreset:
@@ -1083,6 +1122,9 @@ status_t OMXNodeInstance::useBuffer_l(
     OMX_BUFFERHEADERTYPE *header;
     OMX_ERRORTYPE err = OMX_ErrorNone;
     bool isMetadata = mMetadataType[portIndex] != kMetadataBufferTypeInvalid;
+    ALOGD("%s: mMetadataType[portIndex] = %d", __func__, mMetadataType[portIndex]);
+
+    ALOGD("%s: isMetadata = %d", __func__, isMetadata);
 
     size_t paramsSize;
     void* paramsPointer;
@@ -1091,12 +1133,18 @@ status_t OMXNodeInstance::useBuffer_l(
     }
     if (params != NULL) {
         paramsPointer = params->pointer();
+        ALOGD("%s: paramsPointer = %p", __func__, paramsPointer);
+
         paramsSize = params->size();
+        ALOGD("%s: paramsSize = %d", __func__, paramsSize);
     } else if (hParams != NULL) {
         paramsPointer = hParams->getPointer();
+        ALOGD("%s: hParams paramsPointer = %p", __func__, paramsPointer);
         paramsSize = hParams->getSize();
+        ALOGD("%s: hParamsSize = %d", __func__, paramsSize);
     } else {
         paramsPointer = nullptr;
+        ALOGD("%s: paramsPointer = nullptr", __func__);
     }
 
     OMX_U32 allottedSize;
@@ -1118,7 +1166,9 @@ status_t OMXNodeInstance::useBuffer_l(
         }
         allottedSize = paramsSize;
     }
+    ALOGD("%s: allottedSize = %d", __func__, allottedSize);
 
+#ifndef METADATA_CAMERA_SOURCE
     bool isOutputGraphicMetadata = (portIndex == kPortIndexOutput) &&
             (mMetadataType[portIndex] == kMetadataBufferTypeGrallocSource ||
                     mMetadataType[portIndex] == kMetadataBufferTypeANWBuffer);
@@ -1143,6 +1193,7 @@ status_t OMXNodeInstance::useBuffer_l(
                             paramsPointer));
         }
     } else {
+#endif
         OMX_U8 *data = NULL;
 
         // metadata buffers are not connected cross process
@@ -1171,7 +1222,9 @@ status_t OMXNodeInstance::useBuffer_l(
             CLOG_ERROR(useBuffer, err, SIMPLE_BUFFER(
                     portIndex, (size_t)allottedSize, data));
         }
+#ifndef METADATA_CAMERA_SOURCE
     }
+#endif
 
     if (err != OMX_ErrorNone) {
         delete buffer_meta;
@@ -1433,13 +1486,13 @@ status_t OMXNodeInstance::setInputSurface(
     Mutex::Autolock autolock(mLock);
 
     status_t err;
-
+#ifndef METADATA_CAMERA_SOURCE
     // only allow graphic source on input port, when there are no allocated buffers yet
     if (mNumPortBuffers[kPortIndexInput] > 0) {
         android_errorWriteLog(0x534e4554, "29422020");
         return INVALID_OPERATION;
     }
-
+#endif
     if (getBufferSource() != NULL) {
         return ALREADY_EXISTS;
     }
@@ -1497,12 +1550,13 @@ status_t OMXNodeInstance::allocateSecureBuffer(
     }
 
     Mutex::Autolock autoLock(mLock);
-
+#ifndef METADATA_CAMERA_SOURCE
     if (!mSailed) {
         ALOGE("b/35467458");
         android_errorWriteLog(0x534e4554, "35467458");
         return BAD_VALUE;
     }
+#endif
     BufferMeta *buffer_meta = new BufferMeta(portIndex);
 
     OMX_BUFFERHEADERTYPE *header;
@@ -1648,12 +1702,13 @@ status_t OMXNodeInstance::emptyBuffer_l(
         IOMX::buffer_id buffer,
         OMX_U32 rangeOffset, OMX_U32 rangeLength,
         OMX_U32 flags, OMX_TICKS timestamp, int fenceFd) {
-
+#ifndef METADATA_CAMERA_SOURCE
     // no emptybuffer if using input surface
     if (getBufferSource() != NULL) {
         android_errorWriteLog(0x534e4554, "29422020");
         return INVALID_OPERATION;
     }
+#endif
 
     OMX_BUFFERHEADERTYPE *header = findBufferHeader(buffer, kPortIndexInput);
     if (header == NULL) {
@@ -2173,13 +2228,14 @@ void OMXNodeInstance::onEvent(
             && arg2 == OMX_StateExecuting) {
         bufferSource->onOmxExecuting();
     }
-
+#ifndef METADATA_CAMERA_SOURCE
     // allow configuration if we return to the loaded state
     if (event == OMX_EventCmdComplete
             && arg1 == OMX_CommandStateSet
             && arg2 == OMX_StateLoaded) {
         mSailed = false;
     }
+#endif
 }
 
 // static
