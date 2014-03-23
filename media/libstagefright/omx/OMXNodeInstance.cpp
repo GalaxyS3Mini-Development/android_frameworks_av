@@ -736,7 +736,7 @@ status_t OMXNodeInstance::useGraphicBuffer(
     // See if the newer version of the extension is present.
     OMX_INDEXTYPE index;
 
-#ifndef MTK_HARDWARE
+#if !defined (MTK_HARDWARE) && !defined (STE_HARDWARE)
     if (OMX_GetExtensionIndex(
             mHandle,
             const_cast<OMX_STRING>("OMX.google.android.index.useAndroidNativeBuffer2"),
