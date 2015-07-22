@@ -1191,6 +1191,15 @@ status_t ACodec::configureCodec(
     }
 
     mIsEncoder = encoder;
+   /* Meticulus:
+    * Software codecs don't require configuration? Not sure
+    * but skipping configuration for them seems to work.
+    */
+    if(strncmp("OMX.google.", mComponentName.c_str(), 11) == 0
+       || strncmp("OMX.ffmpeg.", mComponentName.c_str(), 11) == 0){
+	ALOGI("Meticulus: Soft codec detected, skipping configureCodec\n");
+       return OK;
+    }
 
     status_t err = setComponentRole(encoder /* isEncoder */, mime);
 
@@ -4094,7 +4103,7 @@ bool ACodec::LoadedState::onConfigureComponent(
 
     CHECK(mCodec->mNode != NULL);
 
-#ifndef QCOM_HARDWARE
+#if !defined (QCOM_HARDWARE) && !defined (STE_HARDWARE)
     AString mime;
     CHECK(msg->findString("mime", &mime));
 
@@ -4130,7 +4139,7 @@ bool ACodec::LoadedState::onConfigureComponent(
     }
     CHECK_EQ((status_t)OK, mCodec->initNativeWindow());
 
-#ifdef QCOM_HARDWARE
+#if defined (QCOM_HARDWARE) || defined (STE_HARDWARE)
     AString mime;
     CHECK(msg->findString("mime", &mime));
 
