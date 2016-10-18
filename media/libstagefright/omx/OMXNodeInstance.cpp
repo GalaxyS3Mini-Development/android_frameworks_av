@@ -154,7 +154,17 @@ struct BufferMeta {
 
     // return the codec buffer
     sp<ABuffer> getBuffer(const OMX_BUFFERHEADERTYPE *header, bool limit) {
-        sp<ABuffer> buf = new ABuffer(header->pBuffer, header->nAllocLen);
+        return getBuffer(header, false, limit);
+    }
+
+    // return either the codec or the backup buffer
+    sp<ABuffer> getBuffer(const OMX_BUFFERHEADERTYPE *header, bool backup, bool limit) {
+        sp<ABuffer> buf;
+        if (backup && mMem != NULL) {
+            buf = new ABuffer(mMem->pointer(), mMem->size());
+        } else {
+            buf = new ABuffer(header->pBuffer, header->nAllocLen);
+        }
         if (limit) {
             if (header->nOffset + header->nFilledLen > header->nOffset
                     && header->nOffset + header->nFilledLen <= header->nAllocLen) {
@@ -702,6 +712,12 @@ status_t OMXNodeInstance::setPortMode(OMX_U32 portIndex, IOMX::PortMode mode) {
     CLOG_CONFIG(setPortMode, "%s(%d), port %d", asString(mode), mode, portIndex);
 
     switch (mode) {
+    case IOMX::kPortModeDynamicGrallocSource:
+    {
+        MetadataBufferType metaType = kMetadataBufferTypeGrallocSource;
+        return storeMetaDataInBuffers_l(portIndex, OMX_TRUE, &metaType);
+    }
+
     case IOMX::kPortModeDynamicANWBuffer:
     {
         if (portIndex == kPortIndexOutput) {
@@ -727,13 +743,17 @@ status_t OMXNodeInstance::setPortMode(OMX_U32 portIndex, IOMX::PortMode mode) {
         if (portIndex != kPortIndexInput) {
             CLOG_ERROR(setPortMode, BAD_VALUE,
                     "%s(%d) mode is only supported on input port", asString(mode), mode);
-            return BAD_VALUE;
+            //return BAD_VALUE;
         }
         (void)enableNativeBuffers_l(portIndex, OMX_TRUE /*graphic*/, OMX_FALSE);
         (void)enableNativeBuffers_l(portIndex, OMX_FALSE /*graphic*/, OMX_FALSE);
 
         MetadataBufferType metaType = kMetadataBufferTypeNativeHandleSource;
-        return storeMetaDataInBuffers_l(portIndex, OMX_TRUE, &metaType);
+        if (portIndex != kPortIndexInput) {
+            return storeMetaDataInBuffers_l(portIndex, OMX_FALSE, &metaType);
+        } else {
+            return storeMetaDataInBuffers_l(portIndex, OMX_TRUE, &metaType);
+        }
     }
 
     case IOMX::kPortModePresetSecureBuffer:
@@ -794,7 +814,7 @@ status_t OMXNodeInstance::setPortMode(OMX_U32 portIndex, IOMX::PortMode mode) {
         break;
     }
 
-    CLOG_ERROR(setPortMode, BAD_VALUE, "invalid port mode %d", mode);
+    CLOG_ERROR(setPortMode, BAD_VALUE, "invalid port mode %d / %d", mode, IOMX::kPortModeDynamicGrallocSource);
     return BAD_VALUE;
 }
 
@@ -878,6 +898,13 @@ status_t OMXNodeInstance::getGraphicBufferUsage(
     *usage = params.nUsage;
 
     return OK;
+}
+
+status_t OMXNodeInstance::storeMetaDataInBuffers(
+        OMX_U32 portIndex, OMX_BOOL enable, MetadataBufferType *type) {
+    Mutex::Autolock autolock(mLock);
+    CLOG_CONFIG(storeMetaDataInBuffers, "%s:%u en:%d", portString(portIndex), portIndex, enable);
+    return storeMetaDataInBuffers_l(portIndex, enable, type);
 }
 
 status_t OMXNodeInstance::storeMetaDataInBuffers_l(
@@ -1137,6 +1164,9 @@ status_t OMXNodeInstance::useBuffer_l(
         ALOGD("%s: paramsPointer = %p", __func__, paramsPointer);
 
         paramsSize = params->size();
+        if (paramsSize == 8) {
+          return BAD_VALUE;
+        }
         ALOGD("%s: paramsSize = %d", __func__, paramsSize);
     } else if (hParams != NULL) {
         paramsPointer = hParams->getPointer();
@@ -1720,8 +1750,8 @@ status_t OMXNodeInstance::emptyBuffer_l(
         static_cast<BufferMeta *>(header->pAppPrivate);
 
 #ifdef CAMCORDER_GRALLOC_SOURCE
-    sp<ABuffer> backup = buffer_meta->getBuffer(header, false /* limit */);
-    sp<ABuffer> codec = buffer_meta->getBuffer(header, false /* limit */);
+    sp<ABuffer> backup = buffer_meta->getBuffer(header, true /* backup */, false /* limit */);
+    sp<ABuffer> codec = buffer_meta->getBuffer(header, false /* backup */, false /* limit */);
 
     // convert incoming ANW meta buffers if component is configured for gralloc metadata mode
     // ignore rangeOffset in this case

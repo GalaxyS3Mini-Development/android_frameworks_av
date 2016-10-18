@@ -822,6 +822,15 @@ status_t ACodec::setPortMode(int32_t portIndex, IOMX::PortMode mode) {
     }
 
     mPortMode[portIndex] = mode;
+
+#ifdef METADATA_CAMERA_SOURCE
+    // For this specific case we could be using camera source even if storeMetaDataInBuffers
+    // returns Gralloc source. Pretend that we are; this will force us to use nBufferSize.
+    if (mode == IOMX::kPortModeDynamicGrallocSource) {
+        mPortMode[portIndex] = IOMX::kPortModeDynamicCameraSource;
+    }
+#endif
+
     return OK;
 }
 
@@ -857,20 +866,18 @@ status_t ACodec::allocateBuffersOnPort(OMX_U32 portIndex) {
         if (err == OK) {
             const IOMX::PortMode &mode = mPortMode[portIndex];
             size_t bufSize = def.nBufferSize;
-#ifndef METADATA_CAMERA_SOURCE
             // Always allocate VideoNativeMetadata if using ANWBuffer.
             // OMX might use gralloc source internally, but we don't share
             // metadata buffer with OMX, OMX has its own headers.
             if (mode == IOMX::kPortModeDynamicANWBuffer) {
-#else
-            if (mode == IOMX::kPortModeDynamicANWBuffer) {
-                bufSize = sizeof(VideoGrallocMetadata);
-            } else if (mode == IOMX::kPortModeDynamicANWBuffer) {
-#endif
                 bufSize = sizeof(VideoNativeMetadata);
-#ifndef METADATA_CAMERA_SOURCE
             } else if (mode == IOMX::kPortModeDynamicNativeHandle) {
                 bufSize = sizeof(VideoNativeHandleMetadata);
+#ifdef METADATA_CAMERA_SOURCE
+            } else if (mode == IOMX::kPortModeDynamicGrallocSource) {
+                bufSize = max(sizeof(VideoGrallocMetadata), sizeof(VideoNativeMetadata));
+            } else if (portIndex == kPortIndexInput && mode == IOMX::kPortModeDynamicCameraSource) {
+                bufSize = max(sizeof(VideoGrallocMetadata), sizeof(VideoNativeMetadata));
 #endif
             }
 
@@ -975,6 +982,10 @@ status_t ACodec::allocateBuffersOnPort(OMX_U32 portIndex) {
                         err = mOMXNode->useBuffer(
                                 portIndex, hidlMemToken, &info.mBufferID);
                     } else {
+                        if (bufSize == 8) {
+                            ALOGE("%s: wrong buffer size 8", __func__);
+                            continue;
+                        }
                         mem = mDealer[portIndex]->allocate(bufSize);
                         if (mem == NULL || mem->pointer() == NULL) {
                             return NO_MEMORY;
@@ -1003,7 +1014,7 @@ status_t ACodec::allocateBuffersOnPort(OMX_U32 portIndex) {
 
                     // if we require conversion, allocate conversion buffer for client use;
                     // otherwise, reuse codec buffer
-                    if (mConverter[portIndex] != NULL) {
+                    if ((mConverter[portIndex] != NULL) && conversionBufferSize != 8) {
                         CHECK_GT(conversionBufferSize, (size_t)0);
                         if (getTrebleFlag()) {
                             bool success;
@@ -1778,29 +1789,38 @@ status_t ACodec::configureCodec(
     }
 
     int32_t storeMeta;
-#ifndef METADATA_CAMERA_SOURCE
     if (encoder
             && msg->findInt32("android._input-metadata-buffer-type", &storeMeta)
             && storeMeta != kMetadataBufferTypeInvalid) {
-#else
-    if (encoder
-            && msg->findInt32("store-metadata-in-buffers", &storeMeta)
-            && storeMeta != 0) {
-#warning TODO: implement kMetadataBufferTypeGrallocSource handling here
-#endif
         IOMX::PortMode mode;
         if (storeMeta == kMetadataBufferTypeNativeHandleSource) {
             mode = IOMX::kPortModeDynamicNativeHandle;
+#ifdef METADATA_CAMERA_SOURCE
+        } else if (storeMeta == kMetadataBufferTypeANWBuffer) {
+            mode = IOMX::kPortModeDynamicANWBuffer;
+        } else if (storeMeta == kMetadataBufferTypeGrallocSource) {
+            mode = IOMX::kPortModeDynamicGrallocSource;
+#else
         } else if (storeMeta == kMetadataBufferTypeANWBuffer ||
                 storeMeta == kMetadataBufferTypeGrallocSource) {
             mode = IOMX::kPortModeDynamicANWBuffer;
+#endif
         } else {
             return BAD_VALUE;
         }
+
         err = setPortMode(kPortIndexInput, mode);
         if (err != OK) {
             return err;
         }
+
+#ifdef METADATA_CAMERA_SOURCE
+        // For this specific case we could be using camera source even if storeMetaDataInBuffers
+        // returns Gralloc source. Pretend that we are; this will force us to use nBufferSize.
+        if (mode == IOMX::kPortModeDynamicGrallocSource) {
+            mode = IOMX::kPortModeDynamicANWBuffer;
+        }
+#endif
 
         uint32_t usageBits;
         if (mOMXNode->getParameter(
@@ -1842,22 +1862,22 @@ status_t ACodec::configureCodec(
     mIsVideo = video;
     if (encoder && video) {
         OMX_BOOL enable = (OMX_BOOL) (prependSPSPPS
-#ifndef METADATA_CAMERA_SOURCE
             && msg->findInt32("android._store-metadata-in-buffers-output", &storeMeta)
-#else
-            && msg->findInt32("store-metadata-in-buffers-output", &storeMeta)
-#endif
             && storeMeta != 0);
         if (mFlags & kFlagIsSecure) {
             enable = OMX_TRUE;
         }
+
 #ifdef METADATA_CAMERA_SOURCE
-#warning TODO: implement kMetadataBufferTypeGrallocSource handling here
-#endif
+        err = setPortMode(kPortIndexOutput, IOMX::kPortModeDynamicNativeHandle);
+#else
         err = setPortMode(kPortIndexOutput, enable ?
                 IOMX::kPortModePresetSecureBuffer : IOMX::kPortModePresetByteBuffer);
+#endif
         if (err != OK) {
-            return err;
+            ALOGE("[%s] storeMetaDataInBuffers (output) failed w/ err %d",
+                mComponentName.c_str(), err);
+            //return err;
         }
 
         if (!msg->findInt64(
@@ -1909,7 +1929,7 @@ status_t ACodec::configureCodec(
     }
     if (mFlags & kFlagIsSecure) {
         // use native_handles for secure input buffers
-        err = setPortMode(kPortIndexInput, IOMX::kPortModePresetSecureBuffer);
+        err = setPortMode(kPortIndexInput, IOMX::kPortModeDynamicNativeHandle);
 
         if (err != OK) {
             ALOGI("falling back to non-native_handles");
@@ -3234,6 +3254,7 @@ status_t ACodec::setSupportedOutputFormat(bool getLegacyFlexibleFormat) {
                 || format.eColorFormat == OMX_COLOR_FormatYUV420PackedPlanar
                 || format.eColorFormat == OMX_COLOR_FormatYUV420SemiPlanar
                 || format.eColorFormat == OMX_COLOR_FormatYUV420PackedSemiPlanar
+                || format.eColorFormat == OMX_STE_COLOR_FormatYUV420PackedSemiPlanarMB
                 || format.eColorFormat == OMX_TI_COLOR_FormatYUV420PackedSemiPlanar) {
             break;
         }
@@ -5865,6 +5886,17 @@ void ACodec::BaseState::onInputBufferFilled(const sp<AMessage> &msg) {
                     }
                     break;
 #ifndef OMX_ANDROID_COMPILE_AS_32BIT_ON_64BIT_PLATFORMS
+#ifdef METADATA_CAMERA_SOURCE
+                case IOMX::kPortModeDynamicGrallocSource:
+                    if (info->mCodecData->size() >= sizeof(VideoGrallocMetadata)) {
+                        //VideoGrallocMetadata *vgmd =
+                        //    (VideoGrallocMetadata*)info->mCodecData->base();
+                        //native_handle_t* handle = (native_handle_t *)(uintptr_t)vgmd->pHandle;
+                        //err2 = mCodec->mOMXNode->emptyBuffer(
+                        //    bufferID, handle, flags, timeUs, info->mFenceFd);
+                    }
+                    break;
+#endif
                 case IOMX::kPortModeDynamicNativeHandle:
                     if (info->mCodecData->size() >= sizeof(VideoNativeHandleMetadata)) {
                         VideoNativeHandleMetadata *vnhmd =
