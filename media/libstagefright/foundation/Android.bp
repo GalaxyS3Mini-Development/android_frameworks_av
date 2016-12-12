@@ -40,6 +40,7 @@ cc_library {
         "-Wno-multichar",
         "-Werror",
         "-Wall",
+        "-DADD_LEGACY_ACQUIRE_BUFFER_SYMBOL",
     ],
 
     shared_libs: [

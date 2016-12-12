@@ -152,6 +152,13 @@ bool MediaBufferGroup::has_buffers() {
     return false;
 }
 
+#ifdef ADD_LEGACY_ACQUIRE_BUFFER_SYMBOL
+extern "C" status_t _ZN7android16MediaBufferGroup14acquire_bufferEPPNS_11MediaBufferE(
+    MediaBufferGroup* group, MediaBuffer **out) {
+    return group->acquire_buffer(out, false);
+}
+#endif
+
 status_t MediaBufferGroup::acquire_buffer(
         MediaBufferBase **out, bool nonBlocking, size_t requestedSize) {
     Mutex::Autolock autoLock(mInternal->mLock);
