@@ -498,8 +498,6 @@ status_t OMXNodeInstance::freeNode() {
             break;
     }
 
-    Mutex::Autolock _l(mLock);
-
     if (mActiveBuffers.size() > 0) {
         freeActiveBuffers();
     }
