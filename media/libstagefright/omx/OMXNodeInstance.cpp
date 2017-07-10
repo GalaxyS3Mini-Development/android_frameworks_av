@@ -1167,9 +1167,7 @@ status_t OMXNodeInstance::useBuffer_l(
         }
         allottedSize = paramsSize;
     }
-    ALOGD("%s: allottedSize = %d", __func__, allottedSize);
 
-#ifndef METADATA_CAMERA_SOURCE
     bool isOutputGraphicMetadata = (portIndex == kPortIndexOutput) &&
             (mMetadataType[portIndex] == kMetadataBufferTypeGrallocSource ||
                     mMetadataType[portIndex] == kMetadataBufferTypeANWBuffer);
@@ -1182,8 +1180,13 @@ status_t OMXNodeInstance::useBuffer_l(
     // we use useBuffer for output metadata regardless of quirks
     if (!isOutputGraphicMetadata && (mQuirks & requiresAllocateBufferBit)) {
         // metadata buffers are not connected cross process; only copy if not meta.
-        buffer_meta = new BufferMeta(
-                    params, hParams, portIndex, !isMetadata /* copy */, NULL /* data */);
+        buffer_meta = new BufferMeta(params, hParams, portIndex,
+#ifdef METADATA_CAMERA_SOURCE
+                true /* copy */,
+#else
+                !isMetadata /* copy */,
+#endif
+                NULL /* data */);
 
         err = OMX_AllocateBuffer(
                 mHandle, &header, portIndex, buffer_meta, allottedSize);
@@ -1194,7 +1197,6 @@ status_t OMXNodeInstance::useBuffer_l(
                             paramsPointer));
         }
     } else {
-#endif
         OMX_U8 *data = NULL;
 
         // metadata buffers are not connected cross process
@@ -1223,9 +1225,7 @@ status_t OMXNodeInstance::useBuffer_l(
             CLOG_ERROR(useBuffer, err, SIMPLE_BUFFER(
                     portIndex, (size_t)allottedSize, data));
         }
-#ifndef METADATA_CAMERA_SOURCE
     }
-#endif
 
     if (err != OMX_ErrorNone) {
         delete buffer_meta;
