@@ -595,16 +595,12 @@ void CameraHardwareInterface::releaseRecordingFrame(const sp<IMemory>& mem)
     if (CC_LIKELY(mHidlDevice != nullptr)) {
         if (size == sizeof(VideoNativeHandleMetadata)) {
             VideoNativeHandleMetadata* md = (VideoNativeHandleMetadata*) mem->pointer();
-            if (md->eType == kMetadataBufferTypeNativeHandleSource) {
-                // Caching the handle here because md->pHandle will be subject to HAL's edit
-                native_handle_t* nh = md->pHandle;
-                hidl_handle frame = nh;
-                mHidlDevice->releaseRecordingFrameHandle(heapId, bufferIndex, frame);
-                native_handle_close(nh);
-                native_handle_delete(nh);
-            } else {
-                mHidlDevice->releaseRecordingFrame(heapId, bufferIndex);
-            }
+            // Caching the handle here because md->pHandle will be subject to HAL's edit
+            native_handle_t* nh = md->pHandle;
+            hidl_handle frame = nh;
+            mHidlDevice->releaseRecordingFrameHandle(heapId, bufferIndex, frame);
+            native_handle_close(nh);
+            native_handle_delete(nh);
         } else {
             mHidlDevice->releaseRecordingFrame(heapId, bufferIndex);
         }
