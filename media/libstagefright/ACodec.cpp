@@ -887,6 +887,8 @@ status_t ACodec::allocateBuffersOnPort(OMX_U32 portIndex) {
         if (err == OK) {
             const IOMX::PortMode &mode = mPortMode[portIndex];
             size_t bufSize = def.nBufferSize;
+            ALOGI("%s: input (%d), mode = %d", __func__, portIndex == kPortIndexInput, mode);
+
             // Always allocate VideoNativeMetadata if using ANWBuffer.
             // OMX might use gralloc source internally, but we don't share
             // metadata buffer with OMX, OMX has its own headers.
@@ -1834,10 +1836,14 @@ status_t ACodec::configureCodec(
             return BAD_VALUE;
         }
 
+#ifndef STE_HARDWARE
         err = setPortMode(kPortIndexInput, mode);
         if (err != OK) {
             return err;
         }
+#else
+        err = OK;
+#endif
 
         uint32_t usageBits;
         if (mOMXNode->getParameter(
@@ -1883,17 +1889,17 @@ status_t ACodec::configureCodec(
             enable = OMX_TRUE;
         }
 
-#ifdef METADATA_CAMERA_SOURCE
+#ifndef STE_HARDWARE
         err = setPortMode(kPortIndexOutput, IOMX::kPortModeDynamicNativeHandle);
-#else
-        err = setPortMode(kPortIndexOutput, enable ?
-                IOMX::kPortModePresetSecureBuffer : IOMX::kPortModePresetByteBuffer);
-#endif
+
         if (err != OK) {
             ALOGE("[%s] storeMetaDataInBuffers (output) failed w/ err %d",
                 mComponentName.c_str(), err);
             //return err;
         }
+#else
+        err = OK;
+#endif
 
         if (!msg->findInt64(
                     "repeat-previous-frame-after",
@@ -6653,7 +6659,21 @@ ACodec::LoadedState::LoadedState(ACodec *codec)
 }
 
 void ACodec::LoadedState::stateEntered() {
-    ALOGV("[%s] Now Loaded", mCodec->mComponentName.c_str());
+    ALOGI("[%s] Now Loaded", mCodec->mComponentName.c_str());
+
+#ifdef STE_HARDWARE
+    status_t err;
+    IOMX::PortMode mode = IOMX::kPortModeDynamicANWBuffer;
+
+    if (!mCodec->mComponentName.compare("OMX.ST.VFM.MPEG4Enc") ||
+        !mCodec->mComponentName.compare("OMX.ST.VFM.H264Enc")) {
+        ALOGI("%s: chrono: storing metadata before idle", mCodec->mComponentName.c_str());
+        err = mCodec->mOMXNode->setPortMode(kPortIndexInput, mode);
+
+        if (err != OK)
+            ALOGE("Storing meta data in video buffers is not supported");
+    }
+#endif
 
     mCodec->mPortEOS[kPortIndexInput] =
         mCodec->mPortEOS[kPortIndexOutput] = false;
