@@ -25,7 +25,7 @@ const size_t Camera3SharedOutputStream::kMaxOutputs;
 Camera3SharedOutputStream::Camera3SharedOutputStream(int id,
         const std::vector<sp<Surface>>& surfaces,
         uint32_t width, uint32_t height, int format,
-        uint64_t consumerUsage, android_dataspace dataSpace,
+        uint32_t consumerUsage, android_dataspace dataSpace,
         camera3_stream_rotation_t rotation,
         nsecs_t timestampOffset, const String8& physicalCameraId,
         int setId) :
@@ -50,7 +50,7 @@ status_t Camera3SharedOutputStream::connectStreamSplitterLocked() {
 
     mStreamSplitter = new Camera3StreamSplitter();
 
-    uint64_t usage;
+    uint32_t usage;
     getEndpointUsage(&usage);
 
     std::unordered_map<size_t, sp<Surface>> initialSurfaces;
@@ -219,10 +219,10 @@ status_t Camera3SharedOutputStream::disconnectLocked() {
     return res;
 }
 
-status_t Camera3SharedOutputStream::getEndpointUsage(uint64_t *usage) const {
+status_t Camera3SharedOutputStream::getEndpointUsage(uint32_t *usage) const {
 
     status_t res = OK;
-    uint64_t u = 0;
+    uint32_t u = 0;
 
     if (mConsumer == nullptr) {
         // Called before shared buffer queue is constructed.
@@ -310,7 +310,7 @@ status_t Camera3SharedOutputStream::updateStream(const std::vector<sp<Surface>> 
         return BAD_VALUE;
     }
 
-    uint64_t usage;
+    uint32_t usage;
     getEndpointUsage(&usage);
     KeyedVector<sp<Surface>, size_t> removedSurfaces;
     //Check whether the new surfaces are compatible.

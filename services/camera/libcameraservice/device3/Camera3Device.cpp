@@ -435,7 +435,7 @@ DataspaceFlags Camera3Device::mapToHidlDataspace(
 }
 
 BufferUsageFlags Camera3Device::mapToConsumerUsage(
-        uint64_t usage) {
+        uint32_t usage) {
     return usage;
 }
 
@@ -493,12 +493,7 @@ android_dataspace Camera3Device::mapToFrameworkDataspace(
     return static_cast<android_dataspace>(dataSpace);
 }
 
-uint64_t Camera3Device::mapConsumerToFrameworkUsage(
-        BufferUsageFlags usage) {
-    return usage;
-}
-
-uint64_t Camera3Device::mapProducerToFrameworkUsage(
+uint32_t Camera3Device::mapProducerToFrameworkUsage(
         BufferUsageFlags usage) {
     return usage;
 }
@@ -1319,7 +1314,7 @@ status_t Camera3Device::createStream(sp<Surface> consumer,
             uint32_t width, uint32_t height, int format,
             android_dataspace dataSpace, camera3_stream_rotation_t rotation, int *id,
             const String8& physicalCameraId,
-            std::vector<int> *surfaceIds, int streamSetId, bool isShared, uint64_t consumerUsage) {
+            std::vector<int> *surfaceIds, int streamSetId, bool isShared, uint32_t consumerUsage) {
     ATRACE_CALL();
 
     if (consumer == nullptr) {
@@ -1339,14 +1334,14 @@ status_t Camera3Device::createStream(const std::vector<sp<Surface>>& consumers,
         bool hasDeferredConsumer, uint32_t width, uint32_t height, int format,
         android_dataspace dataSpace, camera3_stream_rotation_t rotation, int *id,
         const String8& physicalCameraId,
-        std::vector<int> *surfaceIds, int streamSetId, bool isShared, uint64_t consumerUsage) {
+        std::vector<int> *surfaceIds, int streamSetId, bool isShared, uint32_t consumerUsage) {
     ATRACE_CALL();
 
     Mutex::Autolock il(mInterfaceLock);
     nsecs_t maxExpectedDuration = getExpectedInFlightDuration();
     Mutex::Autolock l(mLock);
     ALOGV("Camera %s: Creating new stream %d: %d x %d, format %d, dataspace %d rotation %d"
-            " consumer usage %" PRIu64 ", isShared %d, physicalCameraId %s", mId.string(),
+            " consumer usage %x, isShared %d, physicalCameraId %s", mId.string(),
             mNextStreamId, width, height, format, dataSpace, rotation, consumerUsage, isShared,
             physicalCameraId.string());
 
@@ -3693,8 +3688,7 @@ status_t Camera3Device::HalInterface::configureStreams(const camera_metadata_t *
                         __FUNCTION__, streamId);
                 return INVALID_OPERATION;
             }
-            dstStream->setUsage(
-                    mapConsumerToFrameworkUsage(src.v3_2.consumerUsage));
+            dstStream->setUsage(src.v3_2.consumerUsage);
         } else {
             // OUTPUT
             if (src.v3_2.consumerUsage != 0) {

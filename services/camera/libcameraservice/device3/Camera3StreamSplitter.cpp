@@ -39,7 +39,7 @@
 namespace android {
 
 status_t Camera3StreamSplitter::connect(const std::unordered_map<size_t, sp<Surface>> &surfaces,
-        uint64_t consumerUsage, uint64_t producerUsage, size_t halMaxBuffers, uint32_t width,
+        uint32_t consumerUsage, uint32_t producerUsage, size_t halMaxBuffers, uint32_t width,
         uint32_t height, android::PixelFormat format, sp<Surface>* consumer) {
     ATRACE_CALL();
     if (consumer == nullptr) {
@@ -227,8 +227,10 @@ status_t Camera3StreamSplitter::addOutputLocked(size_t surfaceId, const sp<Surfa
 
     // Set dequeueBuffer/attachBuffer timeout if the consumer is not hw composer or hw texture.
     // We need skip these cases as timeout will disable the non-blocking (async) mode.
-    uint64_t usage = 0;
-    res = native_window_get_consumer_usage(static_cast<ANativeWindow*>(outputQueue.get()), &usage);
+    int32_t usage = 0;
+    static_cast<ANativeWindow*>(outputQueue.get())->query(
+            outputQueue.get(),
+            NATIVE_WINDOW_CONSUMER_USAGE_BITS, &usage);
     if (!(usage & (GRALLOC_USAGE_HW_COMPOSER | GRALLOC_USAGE_HW_TEXTURE))) {
         outputQueue->setDequeueTimeout(kDequeueBufferTimeout);
     }

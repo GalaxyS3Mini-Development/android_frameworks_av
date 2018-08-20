@@ -133,7 +133,7 @@ class CameraDeviceBase : public virtual RefBase {
             const String8& physicalCameraId,
             std::vector<int> *surfaceIds = nullptr,
             int streamSetId = camera3::CAMERA3_STREAM_SET_ID_INVALID,
-            bool isShared = false, uint64_t consumerUsage = 0) = 0;
+            bool isShared = false, uint32_t consumerUsage = 0) = 0;
 
     /**
      * Create an output stream of the requested size, format, rotation and
@@ -148,7 +148,7 @@ class CameraDeviceBase : public virtual RefBase {
             const String8& physicalCameraId,
             std::vector<int> *surfaceIds = nullptr,
             int streamSetId = camera3::CAMERA3_STREAM_SET_ID_INVALID,
-            bool isShared = false, uint64_t consumerUsage = 0) = 0;
+            bool isShared = false, uint32_t consumerUsage = 0) = 0;
 
     /**
      * Create an input stream of width, height, and format.

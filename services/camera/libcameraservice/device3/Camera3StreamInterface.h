@@ -50,13 +50,13 @@ class OutputStreamInfo {
         int height;
         int format;
         android_dataspace dataSpace;
-        uint64_t consumerUsage;
+        uint32_t consumerUsage;
         bool finalized = false;
         OutputStreamInfo() :
             width(-1), height(-1), format(-1), dataSpace(HAL_DATASPACE_UNKNOWN),
             consumerUsage(0) {}
         OutputStreamInfo(int _width, int _height, int _format, android_dataspace _dataSpace,
-                uint64_t _consumerUsage) :
+                uint32_t _consumerUsage) :
             width(_width), height(_height), format(_format),
             dataSpace(_dataSpace), consumerUsage(_consumerUsage) {}
 };
