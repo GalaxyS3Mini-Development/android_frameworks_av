@@ -375,7 +375,7 @@ OMXNodeInstance::OMXNodeInstance(
     mSecureBufferType[0] = kSecureBufferTypeUnknown;
     mSecureBufferType[1] = kSecureBufferTypeUnknown;
     mIsSecure = AString(name).endsWith(".secure");
-    mLegacyAdaptiveExperiment = ADebug::isExperimentEnabled("legacy-adaptive");
+    mLegacyAdaptiveExperiment = false; //ADebug::isExperimentEnabled("legacy-adaptive");
 }
 
 OMXNodeInstance::~OMXNodeInstance() {
@@ -721,7 +721,7 @@ status_t OMXNodeInstance::setPortMode(OMX_U32 portIndex, IOMX::PortMode mode) {
             }
         }
         (void)enableNativeBuffers_l(portIndex, OMX_FALSE /*graphic*/, OMX_FALSE);
-        return storeMetaDataInBuffers_l(portIndex, OMX_TRUE, NULL);
+        return storeMetaDataInBuffers_l(portIndex, OMX_FALSE, NULL);
     }
 
     case IOMX::kPortModeDynamicNativeHandle:
@@ -766,7 +766,8 @@ status_t OMXNodeInstance::setPortMode(OMX_U32 portIndex, IOMX::PortMode mode) {
             CLOG_INTERNAL(setPortMode, "Legacy adaptive experiment: "
                     "unable to enable metadata mode on output");
 
-            mLegacyAdaptiveExperiment = false;
+            ALOGE("//mLegacyAdaptiveExperiment = false;");
+            //mLegacyAdaptiveExperiment = false;
         }
 
         // Disable secure buffer and enable graphic buffer
@@ -1090,6 +1091,7 @@ status_t OMXNodeInstance::useBuffer(
     }
 #endif
 
+    ALOGD("%s: omxBuffer.mBufferType = %d", __func__, omxBuffer.mBufferType);
     switch (omxBuffer.mBufferType) {
         case OMXBuffer::kBufferTypePreset:
             return useBuffer_l(portIndex, NULL, NULL, buffer);
@@ -1098,6 +1100,7 @@ status_t OMXNodeInstance::useBuffer(
             return useBuffer_l(portIndex, omxBuffer.mMem, NULL, buffer);
 
         case OMXBuffer::kBufferTypeANWBuffer:
+            mMetadataType[portIndex] = kMetadataBufferTypeInvalid;
             return useGraphicBuffer_l(portIndex, omxBuffer.mGraphicBuffer, buffer);
 
         case OMXBuffer::kBufferTypeHidlMemory: {
