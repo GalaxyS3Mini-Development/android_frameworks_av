@@ -132,6 +132,12 @@ Return<void> Omx::allocateNode(
                     quirks |= OMXNodeInstance::
                             kRequiresAllocateBufferOnOutputPorts;
                 }
+#ifdef STE_HARDWARE
+                if (quirk == "requires-store-metadata-before-idle") {
+                    quirks |= OMXNodeInstance::
+                            kRequiresStoreMetaDataBeforeIdle;
+                }
+#endif
             }
             instance->setQuirks(quirks);
         }

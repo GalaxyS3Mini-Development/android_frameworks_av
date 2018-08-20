@@ -91,6 +91,9 @@ struct ACodec : public AHierarchicalStateMachine, public CodecBase {
     enum Quirks {
         kRequiresAllocateBufferOnInputPorts   = 1,
         kRequiresAllocateBufferOnOutputPorts  = 2,
+#ifdef STE_HARDWARE
+        kRequiresStoreMetaDataBeforeIdle      = 16384,
+#endif
     };
 
     static status_t getOMXChannelMapping(size_t numChannels, OMX_AUDIO_CHANNELTYPE map[]);
@@ -550,6 +553,7 @@ private:
 
     status_t requestIDRFrame();
     status_t setParameters(const sp<AMessage> &params);
+    uint32_t OmxToHALFormat(OMX_COLOR_FORMATTYPE omxValue);
 
     // set vendor extension parameters specified in params that are supported by the codec
     status_t setVendorParameters(const sp<AMessage> &params);
