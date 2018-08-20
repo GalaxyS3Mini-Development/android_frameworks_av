@@ -98,6 +98,9 @@ struct OMXNodeInstance : public BnOMXNode {
     enum Quirks {
         kRequiresAllocateBufferOnInputPorts   = 1,
         kRequiresAllocateBufferOnOutputPorts  = 2,
+#ifdef STE_HARDWARE
+        kRequiresStoreMetaDataBeforeIdle      = 16384,
+#endif
 
         kQuirksMask = kRequiresAllocateBufferOnInputPorts
                     | kRequiresAllocateBufferOnOutputPorts,

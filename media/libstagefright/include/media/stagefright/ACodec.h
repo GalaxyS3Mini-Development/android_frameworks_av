@@ -91,6 +91,9 @@ struct ACodec : public AHierarchicalStateMachine, public CodecBase {
     enum Quirks {
         kRequiresAllocateBufferOnInputPorts   = 1,
         kRequiresAllocateBufferOnOutputPorts  = 2,
+#ifdef STE_HARDWARE
+        kRequiresStoreMetaDataBeforeIdle      = 16384,
+#endif
     };
 
     static status_t getOMXChannelMapping(size_t numChannels, OMX_AUDIO_CHANNELTYPE map[]);
