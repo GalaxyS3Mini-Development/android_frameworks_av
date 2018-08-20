@@ -67,6 +67,14 @@ audio_policy_dev_state_t AudioPolicyService::getDeviceConnectionState(
                                                       device_address);
 }
 
+status_t AudioPolicyService::handleDeviceConfigChange(audio_devices_t device,
+                                                  const char *device_address,
+                                                  const char *device_name)
+{
+    ALOGE("handleDeviceConfigChange()");
+    return INVALID_OPERATION;
+}
+
 status_t AudioPolicyService::setPhoneState(audio_mode_t state)
 {
     if (mpAudioPolicy == NULL) {
@@ -271,7 +279,7 @@ status_t AudioPolicyService::getInputForAttr(const audio_attributes_t *attr,
         inputSource = AUDIO_SOURCE_MIC;
     }
 
-    if ((inputSource == AUDIO_SOURCE_HOTWORD) && !captureHotwordAllowed()) {
+    if ((inputSource == AUDIO_SOURCE_HOTWORD) && !captureHotwordAllowed(pid, uid)) {
         return BAD_VALUE;
     }
 
@@ -652,6 +660,18 @@ status_t AudioPolicyService::setMasterMono(bool mono)
 }
 
 status_t AudioPolicyService::getMasterMono(bool *mono)
+{
+    return INVALID_OPERATION;
+}
+
+float AudioPolicyService::getStreamVolumeDB(
+            audio_stream_type_t stream, int index, audio_devices_t device)
+{
+    return INVALID_OPERATION;
+}
+
+status_t AudioPolicyService::listAudioSessions(audio_stream_type_t streams,
+                                               Vector< sp<AudioSessionInfo>> &sessions)
 {
     return INVALID_OPERATION;
 }
