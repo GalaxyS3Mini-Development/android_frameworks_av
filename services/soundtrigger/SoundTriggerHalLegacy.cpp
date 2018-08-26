@@ -15,6 +15,7 @@
  */
 
 #include <utils/Log.h>
+#include <errno.h>
 #include "SoundTriggerHalLegacy.h"
 
 namespace android {
