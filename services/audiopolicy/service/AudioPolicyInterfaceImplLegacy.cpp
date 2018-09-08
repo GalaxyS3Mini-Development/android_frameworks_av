@@ -670,10 +670,12 @@ float AudioPolicyService::getStreamVolumeDB(
     return INVALID_OPERATION;
 }
 
+#if 0
 status_t AudioPolicyService::listAudioSessions(audio_stream_type_t streams,
                                                Vector< sp<AudioSessionInfo>> &sessions)
 {
     return INVALID_OPERATION;
 }
+#endif
 
 }; // namespace android
