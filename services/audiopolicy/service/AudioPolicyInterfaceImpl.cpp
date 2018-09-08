@@ -605,37 +605,26 @@ status_t AudioPolicyService::stopInput(audio_port_handle_t portId)
     return mAudioPolicyManager->stopInput(client->input, client->session);
 }
 
-void AudioPolicyService::releaseInput(audio_port_handle_t portId)
+void AudioPolicyService::releaseInput(audio_io_handle_t input,
+                                      audio_session_t session)
 {
-    if (mAudioPolicyManager == NULL) {
+    if (mpAudioPolicy == NULL) {
         return;
     }
+
     sp<AudioPolicyEffects>audioPolicyEffects;
-    sp<AudioRecordClient> client;
     {
         Mutex::Autolock _l(mLock);
+        mpAudioPolicy->release_input(mpAudioPolicy, input);
         audioPolicyEffects = mAudioPolicyEffects;
-        ssize_t index = mAudioRecordClients.indexOfKey(portId);
-        if (index < 0) {
-            return;
-        }
-        client = mAudioRecordClients.valueAt(index);
-        mAudioRecordClients.removeItem(portId);
     }
-    if (client == 0) {
-        return;
-    }
+
     if (audioPolicyEffects != 0) {
-        // release audio processors from the input
-        status_t status = audioPolicyEffects->releaseInputEffects(client->input, client->session);
-        if(status != NO_ERROR) {
-            ALOGW("Failed to release effects on input %d", client->input);
+       // release audio processors from the input
+        status_t status = audioPolicyEffects->releaseInputEffects(input, session);
+        if (status != NO_ERROR) {
+           ALOGW("Failed to release effects on input %d", input);
         }
-    }
-    {
-        Mutex::Autolock _l(mLock);
-        AutoCallerClear acc;
-        mAudioPolicyManager->releaseInput(client->input, client->session);
     }
 }
 

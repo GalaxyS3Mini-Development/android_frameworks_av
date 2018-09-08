@@ -258,6 +258,7 @@ status_t AudioPolicyService::getInputForAttr(const audio_attributes_t *attr,
                                              audio_session_t session,
                                              pid_t pid __unused,
                                              uid_t uid __unused,
+                                             const String16& opPackageName __unused,
                                              const audio_config_base_t *config,
                                              audio_input_flags_t flags,
                                              audio_port_handle_t *selectedDeviceId,
@@ -310,8 +311,7 @@ status_t AudioPolicyService::getInputForAttr(const audio_attributes_t *attr,
     return NO_ERROR;
 }
 
-status_t AudioPolicyService::startInput(audio_io_handle_t input,
-                                        audio_session_t session __unused)
+status_t AudioPolicyService::startInput(audio_port_handle_t input, bool *silenced __unused)
 {
     if (mpAudioPolicy == NULL) {
         return NO_INIT;
@@ -321,8 +321,7 @@ status_t AudioPolicyService::startInput(audio_io_handle_t input,
     return mpAudioPolicy->start_input(mpAudioPolicy, input);
 }
 
-status_t AudioPolicyService::stopInput(audio_io_handle_t input,
-                                       audio_session_t session __unused)
+status_t AudioPolicyService::stopInput(audio_port_handle_t input)
 {
     if (mpAudioPolicy == NULL) {
         return NO_INIT;
@@ -332,8 +331,8 @@ status_t AudioPolicyService::stopInput(audio_io_handle_t input,
     return mpAudioPolicy->stop_input(mpAudioPolicy, input);
 }
 
-void AudioPolicyService::releaseInput(audio_io_handle_t input,
-                                      audio_session_t session)
+void AudioPolicyService::releaseInput(audio_io_handle_t input/*,
+                                      audio_session_t session*/)
 {
     if (mpAudioPolicy == NULL) {
         return;
@@ -345,13 +344,15 @@ void AudioPolicyService::releaseInput(audio_io_handle_t input,
         mpAudioPolicy->release_input(mpAudioPolicy, input);
         audioPolicyEffects = mAudioPolicyEffects;
     }
+#if 0
     if (audioPolicyEffects != 0) {
         // release audio processors from the input
         status_t status = audioPolicyEffects->releaseInputEffects(input, session);
-        if(status != NO_ERROR) {
-            ALOGW("Failed to release effects on input %d", input);
+        if (status != NO_ERROR) {
+           ALOGW("Failed to release effects on input %d", input);
         }
     }
+#endif
 }
 
 status_t AudioPolicyService::initStreamVolume(audio_stream_type_t stream,
@@ -603,6 +604,7 @@ status_t AudioPolicyService::getOutputForAttr(const audio_attributes_t *attr,
                                               audio_io_handle_t *output,
                                               audio_session_t session __unused,
                                               audio_stream_type_t *stream,
+                                              pid_t pid __unused,
                                               uid_t uid __unused,
                                               const audio_config_t *config,
                                               audio_output_flags_t flags,
@@ -677,5 +679,18 @@ status_t AudioPolicyService::listAudioSessions(audio_stream_type_t streams,
     return INVALID_OPERATION;
 }
 #endif
+
+status_t AudioPolicyService::setSurroundFormatEnabled(audio_format_t audioFormat __unused, bool enabled __unused)
+{
+    return INVALID_OPERATION;
+}
+
+status_t AudioPolicyService::getSurroundFormats(unsigned int *numSurroundFormats __unused,
+                                        audio_format_t *surroundFormats __unused,
+                                        bool *surroundFormatsEnabled __unused,
+                                        bool reported __unused)
+{
+    return INVALID_OPERATION;
+}
 
 }; // namespace android
