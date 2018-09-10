@@ -19,13 +19,21 @@
 
 #include "DevicesFactoryHalHybrid.h"
 #include "DevicesFactoryHalLocal.h"
+#ifndef USE_LEGACY_LOCAL_AUDIO_HAL
 #include "DevicesFactoryHalHidl.h"
+#endif
 
 namespace android {
 
 DevicesFactoryHalHybrid::DevicesFactoryHalHybrid()
         : mLocalFactory(new DevicesFactoryHalLocal()),
-          mHidlFactory(new DevicesFactoryHalHidl()) {
+          mHidlFactory(
+#ifdef USE_LEGACY_LOCAL_AUDIO_HAL
+                  nullptr
+#else
+                  new DevicesFactoryHalHidl()
+#endif
+                       ) {
 }
 
 DevicesFactoryHalHybrid::~DevicesFactoryHalHybrid() {

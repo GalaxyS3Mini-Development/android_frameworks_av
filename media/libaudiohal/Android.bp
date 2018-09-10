@@ -2,13 +2,15 @@ cc_library_shared {
     name: "libaudiohal",
 
     srcs: [
-        "DevicesFactoryHalInterface.cpp",
-        "EffectsFactoryHalInterface.cpp",
+      "EffectBufferHalLocal.cpp", 
+      "EffectsFactoryHalLocal.cpp",
+      "EffectHalLocal.cpp"
     ],
 
     cflags: [
         "-Wall",
         "-Werror",
+        "-DUSE_LEGACY_LOCAL_AUDIO_HAL",
     ],
 
     shared_libs: [
