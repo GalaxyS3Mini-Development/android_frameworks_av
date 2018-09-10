@@ -40,6 +40,7 @@ LOCAL_C_INCLUDES := \
 
 LOCAL_SHARED_LIBRARIES := \
     libaudiohal \
+    libaudiohal@2.0 \
     libaudioprocessing \
     libaudiospdif \
     libaudioutils \

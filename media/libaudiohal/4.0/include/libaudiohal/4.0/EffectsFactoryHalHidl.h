@@ -52,9 +52,9 @@ class EffectsFactoryHalHidl : public EffectsFactoryHalInterface, public Conversi
 
     virtual status_t dumpEffects(int fd);
 
-    status_t allocateBuffer(size_t size, sp<EffectBufferHalInterface>* buffer) override;
+    status_t allocateBuffer(size_t size, sp<EffectBufferHalInterface>* buffer);
     status_t mirrorBuffer(void* external, size_t size,
-                          sp<EffectBufferHalInterface>* buffer) override;
+                          sp<EffectBufferHalInterface>* buffer);
 
   private:
     friend class EffectsFactoryHalInterface;
