@@ -37,12 +37,14 @@ uint64_t EffectBufferHalHidl::makeUniqueId() {
     return counter++;
 }
 
-status_t EffectBufferHalHidl::allocate(
+// static
+status_t EffectBufferHalInterface::allocate(
         size_t size, sp<EffectBufferHalInterface>* buffer) {
     return mirror(nullptr, size, buffer);
 }
 
-status_t EffectBufferHalHidl::mirror(
+// static
+status_t EffectBufferHalInterface::mirror(
         void* external, size_t size, sp<EffectBufferHalInterface>* buffer) {
     sp<EffectBufferHalInterface> tempBuffer = new EffectBufferHalHidl(size);
     status_t result = static_cast<EffectBufferHalHidl*>(tempBuffer.get())->init();

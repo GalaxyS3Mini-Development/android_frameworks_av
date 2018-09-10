@@ -1029,9 +1029,7 @@ void AudioFlinger::EffectModule::setInBuffer(const sp<EffectBufferHalInterface>&
                 || size > mInConversionBuffer->getSize())) {
             mInConversionBuffer.clear();
             ALOGV("%s: allocating mInConversionBuffer %zu", __func__, size);
-            sp<AudioFlinger> audioFlinger = mAudioFlinger.promote();
-            LOG_ALWAYS_FATAL_IF(audioFlinger == nullptr, "EM could not retrieved audioFlinger");
-            (void)audioFlinger->mEffectsFactoryHal->allocateBuffer(size, &mInConversionBuffer);
+            (void)EffectBufferHalInterface::allocate(size, &mInConversionBuffer);
         }
         if (mInConversionBuffer.get() != nullptr) {
             mInConversionBuffer->setFrameCount(inFrameCount);
@@ -1075,9 +1073,7 @@ void AudioFlinger::EffectModule::setOutBuffer(const sp<EffectBufferHalInterface>
                 || size > mOutConversionBuffer->getSize())) {
             mOutConversionBuffer.clear();
             ALOGV("%s: allocating mOutConversionBuffer %zu", __func__, size);
-            sp<AudioFlinger> audioFlinger = mAudioFlinger.promote();
-            LOG_ALWAYS_FATAL_IF(audioFlinger == nullptr, "EM could not retrieved audioFlinger");
-            (void)audioFlinger->mEffectsFactoryHal->allocateBuffer(size, &mOutConversionBuffer);
+            (void)EffectBufferHalInterface::allocate(size, &mOutConversionBuffer);
         }
         if (mOutConversionBuffer.get() != nullptr) {
             mOutConversionBuffer->setFrameCount(outFrameCount);
@@ -2026,10 +2022,10 @@ status_t AudioFlinger::EffectChain::addEffect_ll(const sp<EffectModule>& effect)
         size_t numSamples = thread->frameCount();
         sp<EffectBufferHalInterface> halBuffer;
 #ifdef FLOAT_EFFECT_CHAIN
-        status_t result = thread->mAudioFlinger->mEffectsFactoryHal->allocateBuffer(
+        status_t result = EffectBufferHalInterface::allocate(
                 numSamples * sizeof(float), &halBuffer);
 #else
-        status_t result = thread->mAudioFlinger->mEffectsFactoryHal->allocateBuffer(
+        status_t result = EffectBufferHalInterface::allocate(
                 numSamples * sizeof(int32_t), &halBuffer);
 #endif
         if (result != OK) return result;

@@ -183,7 +183,7 @@ DownmixerBufferProvider::DownmixerBufferProvider(
      mOutFrameSize =
              audio_bytes_per_sample(format) * audio_channel_count_from_out_mask(outputChannelMask);
      status_t status;
-     status = mEffectsFactory->mirrorBuffer(
+     status = EffectBufferHalInterface::mirror(
              nullptr, mInFrameSize * bufferFrameCount, &mInBuffer);
      if (status != 0) {
          ALOGE("DownmixerBufferProvider() error %d while creating input buffer", status);
@@ -191,7 +191,7 @@ DownmixerBufferProvider::DownmixerBufferProvider(
          mEffectsFactory.clear();
          return;
      }
-     status = mEffectsFactory->mirrorBuffer(
+     status = EffectBufferHalInterface::mirror(
              nullptr, mOutFrameSize * bufferFrameCount, &mOutBuffer);
      if (status != 0) {
          ALOGE("DownmixerBufferProvider() error %d while creating output buffer", status);

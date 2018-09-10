@@ -2972,7 +2972,7 @@ status_t AudioFlinger::PlaybackThread::addEffectChain_l(const sp<EffectChain>& c
 {
     audio_session_t session = chain->sessionId();
     sp<EffectBufferHalInterface> halInBuffer, halOutBuffer;
-    status_t result = mAudioFlinger->mEffectsFactoryHal->mirrorBuffer(
+    status_t result = EffectBufferHalInterface::mirror(
             mEffectBufferEnabled ? mEffectBuffer : mSinkBuffer,
             mEffectBufferEnabled ? mEffectBufferSize : mSinkBufferSize,
             &halInBuffer);
@@ -2985,7 +2985,7 @@ status_t AudioFlinger::PlaybackThread::addEffectChain_l(const sp<EffectChain>& c
         // the sink buffer as input
         if (mType != DIRECT) {
             size_t numSamples = mNormalFrameCount * mChannelCount;
-            status_t result = mAudioFlinger->mEffectsFactoryHal->allocateBuffer(
+            status_t result = EffectBufferHalInterface::allocate(
                     numSamples * sizeof(effect_buffer_t),
                     &halInBuffer);
             if (result != OK) return result;
