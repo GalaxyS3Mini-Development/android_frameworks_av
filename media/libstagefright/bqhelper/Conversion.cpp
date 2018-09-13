@@ -1221,8 +1221,7 @@ constexpr size_t minFlattenedSize(
 size_t getFlattenedSize(HGraphicBufferProducer::QueueBufferInput const& t) {
     return minFlattenedSize(t) +
             getFenceFlattenedSize(t.fence) +
-            getFlattenedSize(t.surfaceDamage) +
-            sizeof(HdrMetadata::validTypes);
+            getFlattenedSize(t.surfaceDamage);
 }
 
 /**
@@ -1280,7 +1279,7 @@ status_t flatten(HGraphicBufferProducer::QueueBufferInput const& t,
     if (status != NO_ERROR) {
         return status;
     }
-    FlattenableUtils::write(buffer, size, decltype(HdrMetadata::validTypes)(0));
+    //FlattenableUtils::write(buffer, size, decltype(HdrMetadata::validTypes)(0));
     return NO_ERROR;
 }
 

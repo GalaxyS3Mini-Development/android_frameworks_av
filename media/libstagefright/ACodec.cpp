@@ -6251,7 +6251,7 @@ void ACodec::BaseState::onOutputBufferDrained(const sp<AMessage> &msg) {
             HDRStaticInfo info;
             if (ColorUtils::getHDRStaticInfoFromFormat(buffer->format(), &info)
                 && memcmp(&mCodec->mLastHDRStaticInfo, &info, sizeof(info))) {
-                setNativeWindowHdrMetadata(mCodec->mNativeWindow.get(), &info);
+                //setNativeWindowHdrMetadata(mCodec->mNativeWindow.get(), &info);
                 mCodec->mLastHDRStaticInfo = info;
             }
         }

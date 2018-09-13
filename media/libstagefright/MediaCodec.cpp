@@ -2183,7 +2183,7 @@ void MediaCodec::onMessageReceived(const sp<AMessage> &msg) {
                             if (mOutputFormat->contains("hdr-static-info")) {
                                 HDRStaticInfo info;
                                 if (ColorUtils::getHDRStaticInfoFromFormat(mOutputFormat, &info)) {
-                                    setNativeWindowHdrMetadata(mSurface.get(), &info);
+                                    //setNativeWindowHdrMetadata(mSurface.get(), &info);
                                 }
                             }
 

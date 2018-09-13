@@ -465,7 +465,7 @@ skip_copying:
         HDRStaticInfo info;
         if (ColorUtils::getHDRStaticInfoFromFormat(format, &info)
             && memcmp(&mHDRStaticInfo, &info, sizeof(info))) {
-            setNativeWindowHdrMetadata(mNativeWindow.get(), &info);
+            //setNativeWindowHdrMetadata(mNativeWindow.get(), &info);
             mHDRStaticInfo = info;
         }
     }
