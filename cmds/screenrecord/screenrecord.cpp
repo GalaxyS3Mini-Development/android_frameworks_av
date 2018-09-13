@@ -213,7 +213,9 @@ static status_t prepareEncoder(float displayFps, sp<MediaCodec>* pCodec,
  * Sets the display projection, based on the display dimensions, video size,
  * and device orientation.
  */
-static status_t setDisplayProjection(const sp<IBinder>& dpy,
+static status_t setDisplayProjection(
+        SurfaceComposerClient::Transaction& t,
+        const sp<IBinder>& dpy,
         const DisplayInfo& mainDpyInfo) {
 
     // Set the region of the layer stack we're interested in, which in our
@@ -273,13 +275,15 @@ static status_t setDisplayProjection(const sp<IBinder>& dpy,
         if (gRotate) {
             printf("Rotated content area is %ux%u at offset x=%d y=%d\n",
                     outHeight, outWidth, offY, offX);
+            fflush(stdout);
         } else {
             printf("Content area is %ux%u at offset x=%d y=%d\n",
                     outWidth, outHeight, offX, offY);
+            fflush(stdout);
         }
     }
 
-    SurfaceComposerClient::setDisplayProjection(dpy,
+    t.setDisplayProjection(dpy,
             gRotate ? DISPLAY_ORIENTATION_90 : DISPLAY_ORIENTATION_0,
             layerStackRect, displayRect);
     return NO_ERROR;
@@ -295,11 +299,11 @@ static status_t prepareVirtualDisplay(const DisplayInfo& mainDpyInfo,
     sp<IBinder> dpy = SurfaceComposerClient::createDisplay(
             String8("ScreenRecorder"), false /*secure*/);
 
-    SurfaceComposerClient::openGlobalTransaction();
-    SurfaceComposerClient::setDisplaySurface(dpy, bufferProducer);
-    setDisplayProjection(dpy, mainDpyInfo);
-    SurfaceComposerClient::setDisplayLayerStack(dpy, 0);    // default stack
-    SurfaceComposerClient::closeGlobalTransaction();
+    SurfaceComposerClient::Transaction t;
+    t.setDisplaySurface(dpy, bufferProducer);
+    setDisplayProjection(t, dpy, mainDpyInfo);
+    t.setDisplayLayerStack(dpy, 0);    // default stack
+    t.apply();
 
     *pDisplayHandle = dpy;
 
@@ -379,9 +383,9 @@ static status_t runEncoder(const sp<MediaCodec>& encoder,
                         ALOGW("getDisplayInfo(main) failed: %d", err);
                     } else if (orientation != mainDpyInfo.orientation) {
                         ALOGD("orientation changed, now %d", mainDpyInfo.orientation);
-                        SurfaceComposerClient::openGlobalTransaction();
-                        setDisplayProjection(virtualDpy, mainDpyInfo);
-                        SurfaceComposerClient::closeGlobalTransaction();
+                        SurfaceComposerClient::Transaction t;
+                        setDisplayProjection(t, virtualDpy, mainDpyInfo);
+                        t.apply();
                         orientation = mainDpyInfo.orientation;
                     }
                 }
