@@ -14,23 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_HARDWARE_DEVICE_HAL_HIDL_4_0_H
-#define ANDROID_HARDWARE_DEVICE_HAL_HIDL_4_0_H
+#ifndef ANDROID_HARDWARE_DEVICE_HAL_LOCAL_H
+#define ANDROID_HARDWARE_DEVICE_HAL_LOCAL_H
 
-#include <android/hardware/audio/4.0/IDevice.h>
-#include <android/hardware/audio/4.0/IPrimaryDevice.h>
+#include <hardware/audio.h>
 #include <media/audiohal/DeviceHalInterface.h>
 
-#include "ConversionHelperHidl.h"
-
-using ::android::hardware::audio::V4_0::IDevice;
-using ::android::hardware::audio::V4_0::IPrimaryDevice;
-using ::android::hardware::Return;
-
 namespace android {
-namespace V4_0 {
 
-class DeviceHalHidl : public DeviceHalInterface, public ConversionHelperHidl
+class DeviceHalLocal : public DeviceHalInterface
 {
   public:
     // Sets the value of 'devices' to a bitmask of 1 or more values of audio_devices_t.
@@ -108,24 +100,25 @@ class DeviceHalHidl : public DeviceHalInterface, public ConversionHelperHidl
     // Set audio port configuration.
     virtual status_t setAudioPortConfig(const struct audio_port_config *config);
 
-    // List microphones
-    virtual status_t getMicrophones(std::vector<media::MicrophoneInfo> *microphones);
-
     virtual status_t dump(int fd);
 
+    void closeOutputStream(struct audio_stream_out *stream_out);
+    void closeInputStream(struct audio_stream_in *stream_in);
+
   private:
-    friend class DevicesFactoryHalHidl;
-    sp<IDevice> mDevice;
-    sp<IPrimaryDevice> mPrimaryDevice;  // Null if it's not a primary device.
+    audio_hw_device_t *mDev;
+
+    friend class DevicesFactoryHalLocal;
 
     // Can not be constructed directly by clients.
-    explicit DeviceHalHidl(const sp<IDevice>& device);
+    explicit DeviceHalLocal(audio_hw_device_t *dev);
 
     // The destructor automatically closes the device.
-    virtual ~DeviceHalHidl();
+    virtual ~DeviceHalLocal();
+
+    uint32_t version() const { return mDev->common.version; }
 };
 
-} // namespace V4_0
 } // namespace android
 
-#endif // ANDROID_HARDWARE_DEVICE_HAL_HIDL_4_0_H
+#endif // ANDROID_HARDWARE_DEVICE_HAL_LOCAL_H

@@ -31,7 +31,6 @@ using ::android::hardware::audio::effect::V2_0::EffectBufferAccess;
 using ::android::hardware::audio::effect::V2_0::EffectConfigParameters;
 using ::android::hardware::audio::effect::V2_0::MessageQueueFlagBits;
 using ::android::hardware::audio::effect::V2_0::Result;
-using ::android::hardware::audio::common::V2_0::HidlUtils;
 using ::android::hardware::audio::common::V2_0::AudioChannelMask;
 using ::android::hardware::audio::common::V2_0::AudioFormat;
 using ::android::hardware::hidl_vec;
@@ -122,24 +121,16 @@ status_t EffectHalHidl::analyzeResult(const Result& result) {
 }
 
 status_t EffectHalHidl::setInBuffer(const sp<EffectBufferHalInterface>& buffer) {
-    if (!mBuffersChanged) {
-        if (buffer.get() == nullptr || mInBuffer.get() == nullptr) {
-            mBuffersChanged = buffer.get() != mInBuffer.get();
-        } else {
-            mBuffersChanged = buffer->audioBuffer() != mInBuffer->audioBuffer();
-        }
+    if (mInBuffer == 0 || buffer->audioBuffer() != mInBuffer->audioBuffer()) {
+        mBuffersChanged = true;
     }
     mInBuffer = buffer;
     return OK;
 }
 
 status_t EffectHalHidl::setOutBuffer(const sp<EffectBufferHalInterface>& buffer) {
-    if (!mBuffersChanged) {
-        if (buffer.get() == nullptr || mOutBuffer.get() == nullptr) {
-            mBuffersChanged = buffer.get() != mOutBuffer.get();
-        } else {
-            mBuffersChanged = buffer->audioBuffer() != mOutBuffer->audioBuffer();
-        }
+    if (mOutBuffer == 0 || buffer->audioBuffer() != mOutBuffer->audioBuffer()) {
+        mBuffersChanged = true;
     }
     mOutBuffer = buffer;
     return OK;

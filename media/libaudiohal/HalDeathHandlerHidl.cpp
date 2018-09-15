@@ -48,13 +48,12 @@ void HalDeathHandler::unregisterAtExitHandler(void* cookie) {
 
 void HalDeathHandler::serviceDied(uint64_t /*cookie*/, const wp<IBase>& /*who*/) {
     // No matter which of the service objects has died,
-    // we need to run all the registered handlers and exit.
+    // we need to run all the registered handlers and crash our process.
     std::lock_guard<std::mutex> guard(mHandlersLock);
     for (const auto& handler : mHandlers) {
         handler.second();
     }
-    ALOGE("HAL server crashed, audio server is restarting");
-    exit(1);
+    LOG_ALWAYS_FATAL("HAL server crashed, need to restart");
 }
 
 } // namespace android

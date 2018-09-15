@@ -17,7 +17,6 @@
 #ifndef ANDROID_HARDWARE_DEVICE_HAL_INTERFACE_H
 #define ANDROID_HARDWARE_DEVICE_HAL_INTERFACE_H
 
-#include <media/MicrophoneInfo.h>
 #include <system/audio.h>
 #include <utils/Errors.h>
 #include <utils/RefBase.h>
@@ -105,9 +104,6 @@ class DeviceHalInterface : public RefBase
 
     // Set audio port configuration.
     virtual status_t setAudioPortConfig(const struct audio_port_config *config) = 0;
-
-    // List microphones
-    virtual status_t getMicrophones(std::vector<media::MicrophoneInfo> *microphones) = 0;
 
     virtual status_t dump(int fd) = 0;
 

@@ -14,38 +14,17 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_HARDWARE_STREAM_HAL_HIDL_4_0_H
-#define ANDROID_HARDWARE_STREAM_HAL_HIDL_4_0_H
+#ifndef ANDROID_HARDWARE_STREAM_HAL_LOCAL_H
+#define ANDROID_HARDWARE_STREAM_HAL_LOCAL_H
 
-#include <atomic>
-
-#include <android/hardware/audio/4.0/IStream.h>
-#include <android/hardware/audio/4.0/IStreamIn.h>
-#include <android/hardware/audio/4.0/IStreamOut.h>
-#include <fmq/EventFlag.h>
-#include <fmq/MessageQueue.h>
 #include <media/audiohal/StreamHalInterface.h>
-
-#include "ConversionHelperHidl.h"
 #include "StreamPowerLog.h"
 
-using ::android::hardware::audio::V4_0::IStream;
-using ::android::hardware::audio::V4_0::IStreamIn;
-using ::android::hardware::audio::V4_0::IStreamOut;
-using ::android::hardware::EventFlag;
-using ::android::hardware::MessageQueue;
-using ::android::hardware::Return;
-using ReadParameters = ::android::hardware::audio::V4_0::IStreamIn::ReadParameters;
-using ReadStatus = ::android::hardware::audio::V4_0::IStreamIn::ReadStatus;
-using WriteCommand = ::android::hardware::audio::V4_0::IStreamOut::WriteCommand;
-using WriteStatus = ::android::hardware::audio::V4_0::IStreamOut::WriteStatus;
-
 namespace android {
-namespace V4_0 {
 
-class DeviceHalHidl;
+class DeviceHalLocal;
 
-class StreamHalHidl : public virtual StreamHalInterface, public ConversionHelperHidl
+class StreamHalLocal : public virtual StreamHalInterface
 {
   public:
     // Return the sampling rate in Hz - eg. 44100.
@@ -80,17 +59,17 @@ class StreamHalHidl : public virtual StreamHalInterface, public ConversionHelper
     virtual status_t dump(int fd);
 
     // Start a stream operating in mmap mode.
-    virtual status_t start();
+    virtual status_t start() = 0;
 
     // Stop a stream operating in mmap mode.
-    virtual status_t stop();
+    virtual status_t stop() = 0;
 
     // Retrieve information on the data buffer in mmap mode.
     virtual status_t createMmapBuffer(int32_t minSizeFrames,
-                                      struct audio_mmap_buffer_info *info);
+                                      struct audio_mmap_buffer_info *info) = 0;
 
     // Get current read/write position in the mmap buffer
-    virtual status_t getMmapPosition(struct audio_mmap_position *position);
+    virtual status_t getMmapPosition(struct audio_mmap_position *position) = 0;
 
     // Set the priority of the thread that interacts with the HAL
     // (must match the priority of the audioflinger's thread that calls 'read' / 'write')
@@ -98,26 +77,21 @@ class StreamHalHidl : public virtual StreamHalInterface, public ConversionHelper
 
   protected:
     // Subclasses can not be constructed directly by clients.
-    explicit StreamHalHidl(IStream *stream);
+    StreamHalLocal(audio_stream_t *stream, sp<DeviceHalLocal> device);
 
     // The destructor automatically closes the stream.
-    virtual ~StreamHalHidl();
+    virtual ~StreamHalLocal();
 
-    status_t getCachedBufferSize(size_t *size);
-
-    bool requestHalThreadPriority(pid_t threadPid, pid_t threadId);
+    sp<DeviceHalLocal> mDevice;
 
     // mStreamPowerLog is used for audio signal power logging.
     StreamPowerLog mStreamPowerLog;
 
   private:
-    const int HAL_THREAD_PRIORITY_DEFAULT = -1;
-    IStream *mStream;
-    int mHalThreadPriority;
-    size_t mCachedBufferSize;
+    audio_stream_t *mStream;
 };
 
-class StreamOutHalHidl : public StreamOutHalInterface, public StreamHalHidl {
+class StreamOutHalLocal : public StreamOutHalInterface, public StreamHalLocal {
   public:
     // Return the frame size (number of bytes per sample) of a stream.
     virtual status_t getFrameSize(size_t *size);
@@ -162,41 +136,34 @@ class StreamOutHalHidl : public StreamOutHalInterface, public StreamHalHidl {
     // Return a recent count of the number of audio frames presented to an external observer.
     virtual status_t getPresentationPosition(uint64_t *frames, struct timespec *timestamp);
 
-    // Called when the metadata of the stream's source has been changed.
-    status_t updateSourceMetadata(const SourceMetadata& sourceMetadata) override;
+    // Start a stream operating in mmap mode.
+    virtual status_t start();
 
-    // Methods used by StreamOutCallback (HIDL).
-    void onWriteReady();
-    void onDrainReady();
-    void onError();
+    // Stop a stream operating in mmap mode.
+    virtual status_t stop();
+
+    // Retrieve information on the data buffer in mmap mode.
+    virtual status_t createMmapBuffer(int32_t minSizeFrames,
+                                      struct audio_mmap_buffer_info *info);
+
+    // Get current read/write position in the mmap buffer
+    virtual status_t getMmapPosition(struct audio_mmap_position *position);
 
   private:
-    friend class DeviceHalHidl;
-    typedef MessageQueue<WriteCommand, hardware::kSynchronizedReadWrite> CommandMQ;
-    typedef MessageQueue<uint8_t, hardware::kSynchronizedReadWrite> DataMQ;
-    typedef MessageQueue<WriteStatus, hardware::kSynchronizedReadWrite> StatusMQ;
-
+    audio_stream_out_t *mStream;
     wp<StreamOutHalInterfaceCallback> mCallback;
-    sp<IStreamOut> mStream;
-    std::unique_ptr<CommandMQ> mCommandMQ;
-    std::unique_ptr<DataMQ> mDataMQ;
-    std::unique_ptr<StatusMQ> mStatusMQ;
-    std::atomic<pid_t> mWriterClient;
-    EventFlag* mEfGroup;
+
+    friend class DeviceHalLocal;
 
     // Can not be constructed directly by clients.
-    StreamOutHalHidl(const sp<IStreamOut>& stream);
+    StreamOutHalLocal(audio_stream_out_t *stream, sp<DeviceHalLocal> device);
 
-    virtual ~StreamOutHalHidl();
+    virtual ~StreamOutHalLocal();
 
-    using WriterCallback = std::function<void(const WriteStatus& writeStatus)>;
-    status_t callWriterThread(
-            WriteCommand cmd, const char* cmdName,
-            const uint8_t* data, size_t dataSize, WriterCallback callback);
-    status_t prepareForWriting(size_t bufferSize);
+    static int asyncCallback(stream_callback_event_t event, void *param, void *cookie);
 };
 
-class StreamInHalHidl : public StreamInHalInterface, public StreamHalHidl {
+class StreamInHalLocal : public StreamInHalInterface, public StreamHalLocal {
   public:
     // Return the frame size (number of bytes per sample) of a stream.
     virtual status_t getFrameSize(size_t *size);
@@ -214,37 +181,30 @@ class StreamInHalHidl : public StreamInHalInterface, public StreamHalHidl {
     // the clock time associated with that frame count.
     virtual status_t getCapturePosition(int64_t *frames, int64_t *time);
 
-    // Get active microphones
-    virtual status_t getActiveMicrophones(std::vector<media::MicrophoneInfo> *microphones);
+    // Start a stream operating in mmap mode.
+    virtual status_t start();
 
-    // Called when the metadata of the stream's sink has been changed.
-    status_t updateSinkMetadata(const SinkMetadata& sinkMetadata) override;
+    // Stop a stream operating in mmap mode.
+    virtual status_t stop();
+
+    // Retrieve information on the data buffer in mmap mode.
+    virtual status_t createMmapBuffer(int32_t minSizeFrames,
+                                      struct audio_mmap_buffer_info *info);
+
+    // Get current read/write position in the mmap buffer
+    virtual status_t getMmapPosition(struct audio_mmap_position *position);
 
   private:
-    friend class DeviceHalHidl;
-    typedef MessageQueue<ReadParameters, hardware::kSynchronizedReadWrite> CommandMQ;
-    typedef MessageQueue<uint8_t, hardware::kSynchronizedReadWrite> DataMQ;
-    typedef MessageQueue<ReadStatus, hardware::kSynchronizedReadWrite> StatusMQ;
+    audio_stream_in_t *mStream;
 
-    sp<IStreamIn> mStream;
-    std::unique_ptr<CommandMQ> mCommandMQ;
-    std::unique_ptr<DataMQ> mDataMQ;
-    std::unique_ptr<StatusMQ> mStatusMQ;
-    std::atomic<pid_t> mReaderClient;
-    EventFlag* mEfGroup;
+    friend class DeviceHalLocal;
 
     // Can not be constructed directly by clients.
-    StreamInHalHidl(const sp<IStreamIn>& stream);
+    StreamInHalLocal(audio_stream_in_t *stream, sp<DeviceHalLocal> device);
 
-    virtual ~StreamInHalHidl();
-
-    using ReaderCallback = std::function<void(const ReadStatus& readStatus)>;
-    status_t callReaderThread(
-            const ReadParameters& params, const char* cmdName, ReaderCallback callback);
-    status_t prepareForReading(size_t bufferSize);
+    virtual ~StreamInHalLocal();
 };
 
-} // namespace V4_0
 } // namespace android
 
-#endif // ANDROID_HARDWARE_STREAM_HAL_HIDL_4_0_H
+#endif // ANDROID_HARDWARE_STREAM_HAL_LOCAL_H

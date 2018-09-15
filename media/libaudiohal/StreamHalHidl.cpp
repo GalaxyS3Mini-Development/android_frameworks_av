@@ -17,7 +17,7 @@
 #define LOG_TAG "StreamHalHidl"
 //#define LOG_NDEBUG 0
 
-#include <android/hardware/audio/4.0/IStreamOutCallback.h>
+#include <android/hardware/audio/2.0/IStreamOutCallback.h>
 #include <hwbinder/IPCThreadState.h>
 #include <mediautils/SchedulingPolicyService.h>
 #include <utils/Log.h>
@@ -25,32 +25,24 @@
 #include "DeviceHalHidl.h"
 #include "EffectHalHidl.h"
 #include "StreamHalHidl.h"
-#include "VersionUtils.h"
 
-using ::android::hardware::audio::common::V4_0::AudioChannelMask;
-using ::android::hardware::audio::common::V4_0::AudioContentType;
-using ::android::hardware::audio::common::V4_0::AudioFormat;
-using ::android::hardware::audio::common::V4_0::AudioSource;
-using ::android::hardware::audio::common::V4_0::AudioUsage;
-using ::android::hardware::audio::common::V4_0::ThreadInfo;
-using ::android::hardware::audio::V4_0::AudioDrain;
-using ::android::hardware::audio::V4_0::IStreamOutCallback;
-using ::android::hardware::audio::V4_0::MessageQueueFlagBits;
-using ::android::hardware::audio::V4_0::MicrophoneInfo;
-using ::android::hardware::audio::V4_0::MmapBufferInfo;
-using ::android::hardware::audio::V4_0::MmapPosition;
-using ::android::hardware::audio::V4_0::ParameterValue;
-using ::android::hardware::audio::V4_0::PlaybackTrackMetadata;
-using ::android::hardware::audio::V4_0::RecordTrackMetadata;
-using ::android::hardware::audio::V4_0::Result;
-using ::android::hardware::audio::V4_0::TimeSpec;
+using ::android::hardware::audio::common::V2_0::AudioChannelMask;
+using ::android::hardware::audio::common::V2_0::AudioFormat;
+using ::android::hardware::audio::common::V2_0::ThreadInfo;
+using ::android::hardware::audio::V2_0::AudioDrain;
+using ::android::hardware::audio::V2_0::IStreamOutCallback;
+using ::android::hardware::audio::V2_0::MessageQueueFlagBits;
+using ::android::hardware::audio::V2_0::MmapBufferInfo;
+using ::android::hardware::audio::V2_0::MmapPosition;
+using ::android::hardware::audio::V2_0::ParameterValue;
+using ::android::hardware::audio::V2_0::Result;
+using ::android::hardware::audio::V2_0::TimeSpec;
 using ::android::hardware::MQDescriptorSync;
 using ::android::hardware::Return;
 using ::android::hardware::Void;
-using ReadCommand = ::android::hardware::audio::V4_0::IStreamIn::ReadCommand;
+using ReadCommand = ::android::hardware::audio::V2_0::IStreamIn::ReadCommand;
 
 namespace android {
-namespace V4_0 {
 
 StreamHalHidl::StreamHalHidl(IStream *stream)
         : ConversionHelperHidl("Stream"),
@@ -63,7 +55,7 @@ StreamHalHidl::StreamHalHidl(IStream *stream)
     if (mStream != nullptr && mStreamPowerLog.isUserDebugOrEngBuild()) {
         // Obtain audio properties (see StreamHalHidl::getAudioProperties() below).
         Return<void> ret = mStream->getAudioProperties(
-                [&](auto sr, auto m, auto f) {
+                [&](uint32_t sr, AudioChannelMask m, AudioFormat f) {
                 mStreamPowerLog.init(sr,
                         static_cast<audio_channel_mask_t>(m),
                         static_cast<audio_format_t>(f));
@@ -103,7 +95,7 @@ status_t StreamHalHidl::getAudioProperties(
         uint32_t *sampleRate, audio_channel_mask_t *mask, audio_format_t *format) {
     if (!mStream) return NO_INIT;
     Return<void> ret = mStream->getAudioProperties(
-            [&](uint32_t sr, auto m, auto f) {
+            [&](uint32_t sr, AudioChannelMask m, AudioFormat f) {
                 *sampleRate = sr;
                 *mask = static_cast<audio_channel_mask_t>(m);
                 *format = static_cast<audio_format_t>(f);
@@ -116,8 +108,7 @@ status_t StreamHalHidl::setParameters(const String8& kvPairs) {
     hidl_vec<ParameterValue> hidlParams;
     status_t status = parametersFromHal(kvPairs, &hidlParams);
     if (status != OK) return status;
-    return processReturn("setParameters",
-                         utils::setParameters(mStream, hidlParams, {} /* options */));
+    return processReturn("setParameters", mStream->setParameters(hidlParams));
 }
 
 status_t StreamHalHidl::getParameters(const String8& keys, String8 *values) {
@@ -127,9 +118,7 @@ status_t StreamHalHidl::getParameters(const String8& keys, String8 *values) {
     status_t status = keysFromHal(keys, &hidlKeys);
     if (status != OK) return status;
     Result retval;
-    Return<void> ret = utils::getParameters(
-            mStream,
-            {} /* context */,
+    Return<void> ret = mStream->getParameters(
             hidlKeys,
             [&](Result r, const hidl_vec<ParameterValue>& parameters) {
                 retval = r;
@@ -161,7 +150,7 @@ status_t StreamHalHidl::dump(int fd) {
     if (!mStream) return NO_INIT;
     native_handle_t* hidlHandle = native_handle_create(1, 0);
     hidlHandle->data[0] = fd;
-    Return<void> ret = mStream->debug(hidlHandle, {} /* options */);
+    Return<void> ret = mStream->debugDump(hidlHandle);
     native_handle_delete(hidlHandle);
     mStreamPowerLog.dump(fd);
     return processReturn("dump", ret);
@@ -566,28 +555,6 @@ status_t StreamOutHalHidl::getPresentationPosition(uint64_t *frames, struct time
     }
 }
 
-/** Transform a standard collection to an HIDL vector. */
-template <class Values, class ElementConverter>
-static auto transformToHidlVec(const Values& values, ElementConverter converter) {
-    hidl_vec<decltype(converter(*values.begin()))> result{values.size()};
-    using namespace std;
-    transform(begin(values), end(values), begin(result), converter);
-    return result;
-}
-
-status_t StreamOutHalHidl::updateSourceMetadata(const SourceMetadata& sourceMetadata) {
-    hardware::audio::V4_0::SourceMetadata halMetadata = {
-        .tracks = transformToHidlVec(sourceMetadata.tracks,
-              [](const playback_track_metadata& metadata) -> PlaybackTrackMetadata {
-                  return {
-                    .usage=static_cast<AudioUsage>(metadata.usage),
-                    .contentType=static_cast<AudioContentType>(metadata.content_type),
-                    .gain=metadata.gain,
-                  };
-              })};
-    return processReturn("updateSourceMetadata", mStream->updateSourceMetadata(halMetadata));
-}
-
 void StreamOutHalHidl::onWriteReady() {
     sp<StreamOutHalInterfaceCallback> callback = mCallback.promote();
     if (callback == 0) return;
@@ -782,36 +749,4 @@ status_t StreamInHalHidl::getCapturePosition(int64_t *frames, int64_t *time) {
     }
 }
 
-
-status_t StreamInHalHidl::getActiveMicrophones(
-        std::vector<media::MicrophoneInfo> *microphonesInfo) {
-    if (!mStream) return NO_INIT;
-    Result retval;
-    Return<void> ret = mStream->getActiveMicrophones(
-            [&](Result r, hidl_vec<MicrophoneInfo> micArrayHal) {
-        retval = r;
-        for (size_t k = 0; k < micArrayHal.size(); k++) {
-            audio_microphone_characteristic_t dst;
-            // convert
-            microphoneInfoToHal(micArrayHal[k], &dst);
-            media::MicrophoneInfo microphone = media::MicrophoneInfo(dst);
-            microphonesInfo->push_back(microphone);
-        }
-    });
-    return processReturn("getActiveMicrophones", ret, retval);
-}
-
-status_t StreamInHalHidl::updateSinkMetadata(const SinkMetadata& sinkMetadata) {
-    hardware::audio::V4_0::SinkMetadata halMetadata = {
-        .tracks = transformToHidlVec(sinkMetadata.tracks,
-              [](const record_track_metadata& metadata) -> RecordTrackMetadata {
-                  return {
-                    .source=static_cast<AudioSource>(metadata.source),
-                    .gain=metadata.gain,
-                  };
-              })};
-    return processReturn("updateSinkMetadata", mStream->updateSinkMetadata(halMetadata));
-}
-
-} // namespace V4_0
 } // namespace android
