@@ -4,6 +4,7 @@ include $(CLEAR_VARS)
 
 LOCAL_SHARED_LIBRARIES := \
     libaudioutils \
+    libbase     \
     libcutils   \
     liblog      \
     libutils    \

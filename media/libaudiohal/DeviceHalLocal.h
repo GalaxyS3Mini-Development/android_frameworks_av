@@ -18,6 +18,7 @@
 #define ANDROID_HARDWARE_DEVICE_HAL_LOCAL_H
 
 #include <hardware/audio.h>
+#include <media/MicrophoneInfo.h>
 #include <media/audiohal/DeviceHalInterface.h>
 
 namespace android {
@@ -99,6 +100,9 @@ class DeviceHalLocal : public DeviceHalInterface
 
     // Set audio port configuration.
     virtual status_t setAudioPortConfig(const struct audio_port_config *config);
+
+    virtual status_t getMicrophones(
+        std::vector<media::MicrophoneInfo> *microphones __unused);
 
     virtual status_t dump(int fd);
 
