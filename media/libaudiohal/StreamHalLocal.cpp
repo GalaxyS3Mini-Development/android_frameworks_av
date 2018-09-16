@@ -234,17 +234,17 @@ status_t StreamOutHalLocal::getPresentationPosition(uint64_t *frames, struct tim
     return mStream->get_presentation_position(mStream, frames, timestamp);
 }
 
-status_t StreamOutHalLocal::updateSourceMetadata(const SourceMetadata& sourceMetadata) {
-    if (mStream->update_source_metadata == nullptr) {
+status_t StreamOutHalLocal::updateSourceMetadata(const SourceMetadata& /*sourceMetadata*/) {
+   // if (mStream->update_source_metadata == nullptr) {
         return INVALID_OPERATION;
-    }
-    const source_metadata_t metadata {
+   // }
+   /* const source_metadata_t metadata {
         .track_count = sourceMetadata.tracks.size(),
         // const cast is fine as it is in a const structure
         .tracks = const_cast<playback_track_metadata*>(sourceMetadata.tracks.data()),
     };
     mStream->update_source_metadata(mStream, &metadata);
-    return OK;
+    return OK;*/
 }
 
 status_t StreamOutHalLocal::start() {
