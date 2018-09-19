@@ -72,7 +72,7 @@ status_t AudioPolicyService::handleDeviceConfigChange(audio_devices_t device,
                                                   const char *device_name)
 {
     ALOGE("handleDeviceConfigChange()");
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 status_t AudioPolicyService::setPhoneState(audio_mode_t state)
@@ -562,23 +562,23 @@ status_t AudioPolicyService::listAudioPorts(audio_port_role_t role __unused,
                                             unsigned int *generation __unused)
 {
     *num_ports = 0;
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 status_t AudioPolicyService::getAudioPort(struct audio_port *port __unused)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 status_t AudioPolicyService::createAudioPatch(const struct audio_patch *patch __unused,
         audio_patch_handle_t *handle __unused)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 status_t AudioPolicyService::releaseAudioPatch(audio_patch_handle_t handle __unused)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 status_t AudioPolicyService::listAudioPatches(unsigned int *num_patches,
@@ -586,12 +586,12 @@ status_t AudioPolicyService::listAudioPatches(unsigned int *num_patches,
         unsigned int *generation __unused)
 {
     *num_patches = 0;
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 status_t AudioPolicyService::setAudioPortConfig(const struct audio_port_config *config __unused)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 /*    uint32_t sample_rate;
@@ -630,59 +630,59 @@ status_t AudioPolicyService::acquireSoundTriggerSession(audio_session_t *session
                                        audio_io_handle_t *ioHandle __unused,
                                        audio_devices_t *device __unused)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 status_t AudioPolicyService::releaseSoundTriggerSession(audio_session_t session __unused)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 status_t AudioPolicyService::registerPolicyMixes(const Vector<AudioMix>& mixes __unused,
                                                  bool registration __unused)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 status_t AudioPolicyService::startAudioSource(const struct audio_port_config *source,
                                   const audio_attributes_t *attributes,
                                   audio_patch_handle_t *handle)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 status_t AudioPolicyService::stopAudioSource(audio_patch_handle_t handle)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 status_t AudioPolicyService::setMasterMono(bool mono)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 status_t AudioPolicyService::getMasterMono(bool *mono)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 float AudioPolicyService::getStreamVolumeDB(
             audio_stream_type_t stream, int index, audio_devices_t device)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 #if 0
 status_t AudioPolicyService::listAudioSessions(audio_stream_type_t streams,
                                                Vector< sp<AudioSessionInfo>> &sessions)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 #endif
 
 status_t AudioPolicyService::setSurroundFormatEnabled(audio_format_t audioFormat __unused, bool enabled __unused)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 status_t AudioPolicyService::getSurroundFormats(unsigned int *numSurroundFormats __unused,
@@ -690,7 +690,7 @@ status_t AudioPolicyService::getSurroundFormats(unsigned int *numSurroundFormats
                                         bool *surroundFormatsEnabled __unused,
                                         bool reported __unused)
 {
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 }; // namespace android
