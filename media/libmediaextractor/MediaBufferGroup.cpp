@@ -154,7 +154,7 @@ bool MediaBufferGroup::has_buffers() {
 
 #ifdef ADD_LEGACY_ACQUIRE_BUFFER_SYMBOL
 extern "C" status_t _ZN7android16MediaBufferGroup14acquire_bufferEPPNS_11MediaBufferE(
-    MediaBufferGroup* group, MediaBuffer **out) {
+    MediaBufferGroup* group, MediaBufferBase **out) {
     return group->acquire_buffer(out, false);
 }
 #endif
