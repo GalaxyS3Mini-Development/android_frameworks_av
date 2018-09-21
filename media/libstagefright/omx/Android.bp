@@ -7,6 +7,8 @@ cc_library_shared {
 
     srcs: [
         "BWGraphicBufferSource.cpp",
+        "OMX.cpp",
+        "OMXStore.cpp",
         "OMXMaster.cpp",
         "OMXNodeInstance.cpp",
         "OMXUtils.cpp",
