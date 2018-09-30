@@ -926,6 +926,7 @@ Status CameraService::validateClientPermissionsLocked(const String8& cameraId,
     originalClientPid = clientPid;
     clientPid = callingPid;
 
+#if 0
     userid_t clientUserId = multiuser_get_user_id(clientUid);
 
     // Only allow clients who are being used by the current foreground device user, unless calling
@@ -938,7 +939,7 @@ Status CameraService::validateClientPermissionsLocked(const String8& cameraId,
                 "Callers from device user %d are not currently allowed to connect to camera \"%s\"",
                 clientUserId, cameraId.string());
     }
-
+#endif
     return Status::ok();
 }
 
@@ -2444,6 +2445,7 @@ bool CameraService::UidPolicy::isUidActive(uid_t uid, String16 callingPackage) {
 static const int kPollUidActiveTimeoutMillis = 50;
 
 bool CameraService::UidPolicy::isUidActiveLocked(uid_t uid, String16 callingPackage) {
+    return true;
     // Non-app UIDs are considered always active
     // If activity manager is unreachable, assume everything is active
     if (uid < FIRST_APPLICATION_UID || !mRegistered) {
