@@ -318,6 +318,16 @@ status_t AudioPolicyService::startInput(audio_port_handle_t input, bool *silence
     }
     Mutex::Autolock _l(mLock);
 
+    ALOGE("%s: input=%d", __func__, input);
+    mInputId = input;
+    if (mStartInputCount > 0) {
+        ALOGE("%s: already started, ignoring (mStartInputCount = %d)", __func__, mStartInputCount);
+        return NO_ERROR;
+    }
+
+    mStartInputCount++;
+    mReleaseInputCount = 0;
+
     return mpAudioPolicy->start_input(mpAudioPolicy, input);
 }
 
@@ -328,6 +338,18 @@ status_t AudioPolicyService::stopInput(audio_port_handle_t input)
     }
     Mutex::Autolock _l(mLock);
 
+    ALOGE("%s: input=%d", __func__, input);
+
+    if (input != mInputId && mInputId > 0)
+         input = mInputId;
+
+    if (mStartInputCount <= 0) {
+        ALOGE("%s: already stopped, ignoring (mStartInputCount = %d)", __func__, mStartInputCount);
+        return NO_ERROR;
+    }
+
+    mStartInputCount--;
+
     return mpAudioPolicy->stop_input(mpAudioPolicy, input);
 }
 
@@ -337,6 +359,20 @@ void AudioPolicyService::releaseInput(audio_io_handle_t input/*,
     if (mpAudioPolicy == NULL) {
         return;
     }
+
+    Mutex::Autolock _l(mLock);
+
+    ALOGE("%s: input=%d", __func__, input);
+
+    if (input != mInputId && mInputId > 0)
+         input = mInputId;
+
+    if (mReleaseInputCount > 0) {
+        ALOGE("%s: already released, ignoring (mReleaseInputCount = %d)", __func__, mReleaseInputCount);
+        return;
+    }
+
+    mReleaseInputCount++;
 
     sp<AudioPolicyEffects>audioPolicyEffects;
     {

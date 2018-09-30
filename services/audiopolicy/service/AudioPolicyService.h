@@ -715,6 +715,10 @@ private:
 
     sp<UidPolicy> mUidPolicy;
     DefaultKeyedVector< audio_port_handle_t, sp<AudioRecordClient> >   mAudioRecordClients;
+public:
+    int mStartInputCount;
+    int mReleaseInputCount;
+    int mInputId;
 };
 
 } // namespace android

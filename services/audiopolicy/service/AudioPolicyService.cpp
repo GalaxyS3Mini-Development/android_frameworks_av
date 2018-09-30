@@ -72,7 +72,8 @@ namespace {
 
 AudioPolicyService::AudioPolicyService()
     : BnAudioPolicyService(), mpAudioPolicyDev(NULL), mpAudioPolicy(NULL),
-      mAudioPolicyManager(NULL), mAudioPolicyClient(NULL), mPhoneState(AUDIO_MODE_INVALID)
+      mAudioPolicyManager(NULL), mAudioPolicyClient(NULL), mPhoneState(AUDIO_MODE_INVALID),
+      mStartInputCount(0), mReleaseInputCount(0), mInputId(-2)
 {
 }
 

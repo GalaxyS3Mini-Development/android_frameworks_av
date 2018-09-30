@@ -1758,9 +1758,9 @@ void AudioFlinger::RecordThread::RecordTrack::destroy()
     {
         if (isExternalTrack()) {
             if (mState == ACTIVE || mState == RESUMING) {
-                AudioSystem::stopInput(mPortId);
+                AudioSystem::stopInput(mId);
             }
-            AudioSystem::releaseInput(mPortId);
+            AudioSystem::releaseInput(mId);
         }
         sp<ThreadBase> thread = mThread.promote();
         if (thread != 0) {
