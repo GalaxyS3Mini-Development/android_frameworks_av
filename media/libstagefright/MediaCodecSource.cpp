@@ -479,7 +479,6 @@ status_t MediaCodecSource::init() {
 }
 
 status_t MediaCodecSource::initEncoder() {
-
     mReflector = new AHandlerReflector<MediaCodecSource>(this);
     mLooper->registerHandler(mReflector);
 

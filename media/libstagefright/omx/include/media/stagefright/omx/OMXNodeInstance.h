@@ -96,7 +96,6 @@ struct OMXNodeInstance : public BnOMXNode {
     enum Quirks {
         kRequiresAllocateBufferOnInputPorts   = 1,
         kRequiresAllocateBufferOnOutputPorts  = 2,
-
         kQuirksMask = kRequiresAllocateBufferOnInputPorts
                     | kRequiresAllocateBufferOnOutputPorts,
     };
