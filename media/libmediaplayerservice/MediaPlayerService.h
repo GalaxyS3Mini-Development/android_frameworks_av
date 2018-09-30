@@ -239,6 +239,7 @@ public:
                                        audio_session_t audioSessionId);
 
     virtual sp<IMediaCodecList> getCodecList() const;
+    virtual sp<IOMX>            getOMX();
 
     virtual sp<IRemoteDisplay> listenForRemoteDisplay(const String16 &opPackageName,
             const sp<IRemoteDisplayClient>& client, const String8& iface);
@@ -525,6 +526,7 @@ private:
                 SortedVector< wp<Client> >  mClients;
                 SortedVector< wp<MediaRecorderClient> > mMediaRecorderClients;
                 int32_t                     mNextConnId;
+                sp<IOMX>                    mOMX;
 };
 
 // ----------------------------------------------------------------------------
