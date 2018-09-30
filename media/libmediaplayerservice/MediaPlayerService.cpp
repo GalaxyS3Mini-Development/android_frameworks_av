@@ -78,6 +78,8 @@
 #include "TestPlayerStub.h"
 #include "nuplayer/NuPlayerDriver.h"
 
+#include <media/stagefright/omx/OMX.h>
+
 #include "HTTPBase.h"
 
 static const int kDumpLockRetries = 50;
@@ -333,6 +335,17 @@ sp<IMediaPlayer> MediaPlayerService::create(const sp<IMediaPlayerClient>& client
 
 sp<IMediaCodecList> MediaPlayerService::getCodecList() const {
     return MediaCodecList::getLocalInstance();
+}
+
+sp<IOMX> MediaPlayerService::getOMX() {
+    ALOGI("MediaPlayerService::getOMX");
+    Mutex::Autolock autoLock(mLock);
+
+    if (mOMX.get() == NULL) {
+        mOMX = new OMX;
+    }
+
+    return mOMX;
 }
 
 sp<IRemoteDisplay> MediaPlayerService::listenForRemoteDisplay(
