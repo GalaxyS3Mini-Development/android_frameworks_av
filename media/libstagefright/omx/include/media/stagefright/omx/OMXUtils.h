@@ -69,8 +69,10 @@ inline static const char *asString(IOMX::PortMode mode, const char *def = "??") 
         case IOMX::kPortModePresetByteBuffer:   return "PresetByteBuffer";
         case IOMX::kPortModePresetANWBuffer:    return "PresetANWBuffer";
         case IOMX::kPortModePresetSecureBuffer: return "PresetSecureBuffer";
+        case IOMX::kPortModeDynamicGrallocSource: return "DynamicGrallocSource";
         case IOMX::kPortModeDynamicANWBuffer:   return "DynamicANWBuffer";
         case IOMX::kPortModeDynamicNativeHandle:return "DynamicNativeHandle";
+        case IOMX::kPortModeDynamicCameraSource:return "DynamicCameraSource";
         default:                                return def;
     }
 }

@@ -99,7 +99,6 @@ struct OMXNodeInstance : public BnOMXNode {
 #ifdef STE_HARDWARE
         kRequiresStoreMetaDataBeforeIdle      = 16384,
 #endif
-
         kQuirksMask = kRequiresAllocateBufferOnInputPorts
                     | kRequiresAllocateBufferOnOutputPorts,
     };

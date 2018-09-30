@@ -605,7 +605,7 @@ ACodec::ACodec()
 
     changeState(mUninitializedState);
 
-    mTrebleFlag = false;
+    mTrebleFlag = bool(property_get_bool("debug.treble_omx", false));
 }
 
 ACodec::~ACodec() {
@@ -840,6 +840,7 @@ status_t ACodec::handleSetSurface(const sp<Surface> &surface) {
 }
 
 status_t ACodec::setPortMode(int32_t portIndex, IOMX::PortMode mode) {
+    ALOGE("%s: setPortMode: mode = %d", mComponentName.c_str(), mode);
     status_t err = mOMXNode->setPortMode(portIndex, mode);
     if (err != OK) {
         ALOGE("[%s] setPortMode on %s to %s failed w/ err %d",
@@ -1267,6 +1268,12 @@ status_t ACodec::configureOutputBuffersFromNativeWindow(
 }
 
 status_t ACodec::allocateOutputBuffersFromNativeWindow() {
+#ifndef STE_HARDWARE
+    // This method only handles the non-metadata mode (or simulating legacy
+    // mode with metadata, which is transparent to ACodec).
+    CHECK(!storingMetadataInDecodedBuffers());
+#endif
+
     OMX_U32 bufferCount, bufferSize, minUndequeuedBuffers;
     status_t err = configureOutputBuffersFromNativeWindow(
             &bufferCount, &bufferSize, &minUndequeuedBuffers, true /* preregister */);
@@ -1274,10 +1281,14 @@ status_t ACodec::allocateOutputBuffersFromNativeWindow() {
         return err;
     mNumUndequeuedBuffers = minUndequeuedBuffers;
 
+#ifdef STE_HARDWARE
     if (!storingMetadataInDecodedBuffers()) {
+#endif
         static_cast<Surface*>(mNativeWindow.get())
                 ->getIGraphicBufferProducer()->allowAllocation(true);
+#ifdef STE_HARDWARE
     }
+#endif
 
     ALOGV("[%s] Allocating %u buffers from a native window of size %u on "
          "output port",
@@ -1349,18 +1360,15 @@ status_t ACodec::allocateOutputBuffersFromNativeWindow() {
         }
     }
 
-    if (!storingMetadataInDecodedBuffers()) {
-        static_cast<Surface*>(mNativeWindow.get())
-                ->getIGraphicBufferProducer()->allowAllocation(false);
-    }
+    static_cast<Surface*>(mNativeWindow.get())
+            ->getIGraphicBufferProducer()->allowAllocation(false);
 
     return err;
 }
 
 status_t ACodec::allocateOutputMetadataBuffers() {
-#ifndef STE_HARDWARE
     CHECK(storingMetadataInDecodedBuffers());
-#endif
+
     OMX_U32 bufferCount, bufferSize, minUndequeuedBuffers;
     status_t err = configureOutputBuffersFromNativeWindow(
             &bufferCount, &bufferSize, &minUndequeuedBuffers,
@@ -1782,6 +1790,7 @@ status_t ACodec::configureCodec(
     status_t err = setComponentRole(encoder /* isEncoder */, mime);
 
     if (err != OK) {
+        ALOGE("%s: setComponentRole err=%d", __func__, err);
         return err;
     }
 
@@ -1792,10 +1801,12 @@ status_t ACodec::configureCodec(
     if (encoder) {
         if (mIsVideo || mIsImage) {
             if (!findVideoBitrateControlInfo(msg, &bitrateMode, &bitrate, &quality)) {
+                ALOGE("%s: findVideoBitrateControlInfo err=%d", __func__, INVALID_OPERATION);
                 return INVALID_OPERATION;
             }
         } else if (strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_FLAC)
             && !msg->findInt32("bitrate", &bitrate)) {
+            ALOGE("%s: findVideoBitrateControlInfo err=%d", __func__, INVALID_OPERATION);
             return INVALID_OPERATION;
         }
     }
@@ -1819,8 +1830,10 @@ status_t ACodec::configureCodec(
                 storeMeta == kMetadataBufferTypeGrallocSource) {
             mode = IOMX::kPortModeDynamicANWBuffer;
         } else {
+            ALOGE("%s: storeMeta err=%d", __func__, BAD_VALUE);
             return BAD_VALUE;
         }
+
         err = setPortMode(kPortIndexInput, mode);
         if (err != OK) {
             return err;
@@ -1870,10 +1883,16 @@ status_t ACodec::configureCodec(
             enable = OMX_TRUE;
         }
 
+#ifdef METADATA_CAMERA_SOURCE
+        err = setPortMode(kPortIndexOutput, IOMX::kPortModeDynamicNativeHandle);
+#else
         err = setPortMode(kPortIndexOutput, enable ?
                 IOMX::kPortModePresetSecureBuffer : IOMX::kPortModePresetByteBuffer);
+#endif
         if (err != OK) {
-            return err;
+            ALOGE("[%s] storeMetaDataInBuffers (output) failed w/ err %d",
+                mComponentName.c_str(), err);
+            //return err;
         }
 
         if (!msg->findInt64(
@@ -1930,7 +1949,7 @@ status_t ACodec::configureCodec(
     }
     if (mFlags & kFlagIsSecure) {
         // use native_handles for secure input buffers
-        err = setPortMode(kPortIndexInput, IOMX::kPortModePresetSecureBuffer);
+        err = setPortMode(kPortIndexInput, IOMX::kPortModeDynamicNativeHandle);
 
         if (err != OK) {
             ALOGI("falling back to non-native_handles");
@@ -2007,7 +2026,17 @@ status_t ACodec::configureCodec(
                 return err;
             }
 
-            err = setPortMode(kPortIndexOutput, IOMX::kPortModeDynamicANWBuffer);
+#ifdef STE_HARDWARE
+            bool isSteCodec = !mComponentName.compare("OMX.ST.VFM.H264Dec") ||
+                              !mComponentName.compare("OMX.ST.VFM.MPEG4Dec");
+
+            if (!isSteCodec)
+#endif
+                err = setPortMode(kPortIndexOutput, IOMX::kPortModeDynamicANWBuffer);
+#ifdef STE_HARDWARE
+            else err = OK;
+#endif
+
             if (err != OK) {
                 // if adaptive playback has been requested, try JB fallback
                 // NOTE: THIS FALLBACK MECHANISM WILL BE REMOVED DUE TO ITS
@@ -2055,7 +2084,11 @@ status_t ACodec::configureCodec(
             } else {
                 ALOGV("[%s] setPortMode on output to %s succeeded",
                         mComponentName.c_str(), asString(IOMX::kPortModeDynamicANWBuffer));
+#ifdef STE_HARDWARE
+                if (!isSteCodec)
+#endif
                 CHECK(storingMetadataInDecodedBuffers());
+
                 inputFormat->setInt32("adaptive-playback", true);
             }
 
@@ -2088,6 +2121,8 @@ status_t ACodec::configureCodec(
         } else if (haveNativeWindow && !storingMetadataInDecodedBuffers()) {
             err = setPortMode(kPortIndexOutput, IOMX::kPortModePresetANWBuffer);
             if (err != OK) {
+                ALOGE("%s: haveNativeWindow && !storingMetadataInDecodedBuffers() err=%d", __func__, err);
+
                 return err;
             }
         }
@@ -2099,7 +2134,11 @@ status_t ACodec::configureCodec(
         }
 
         if (err != OK) {
+            ALOGE("%s: setupVideoDecoder err=%d", __func__, err);
+#if 0
             return err;
+#endif
+            err = OK;
         }
 
         if (haveNativeWindow) {
@@ -2111,12 +2150,16 @@ status_t ACodec::configureCodec(
                     requestedColorFormat == OMX_COLOR_FormatYUV420Flexible) {
                 status_t err = getPortFormat(kPortIndexOutput, outputFormat);
                 if (err != OK) {
+            ALOGE("%s: getPortFormat err=%d", __func__, err);
+
                     return err;
                 }
                 int32_t colorFormat = OMX_COLOR_FormatUnused;
                 OMX_U32 flexibleEquivalent = OMX_COLOR_FormatUnused;
                 if (!outputFormat->findInt32("color-format", &colorFormat)) {
                     ALOGE("ouptut port did not have a color format (wrong domain?)");
+            ALOGE("%s: ouptut port did not have a color format err=%d", __func__, BAD_VALUE);
+
                     return BAD_VALUE;
                 }
                 ALOGD("[%s] Requested output format %#x and got %#x.",
@@ -2298,6 +2341,8 @@ status_t ACodec::configureCodec(
     }
 
     if (err != OK) {
+            ALOGE("%s: audio codecs err=%d", __func__, err);
+
         return err;
     }
 
@@ -2344,7 +2389,7 @@ status_t ACodec::configureCodec(
     if (err == OK) {
         err = setVendorParameters(msg);
         if (err != OK) {
-            return err;
+            err = OK;
         }
     }
 
@@ -2378,6 +2423,8 @@ status_t ACodec::configureCodec(
             }
         }
     }
+
+    ALOGE("%s: {end} err=%d", __func__, err);
 
     return err;
 }
@@ -3273,6 +3320,7 @@ status_t ACodec::setSupportedOutputFormat(bool getLegacyFlexibleFormat) {
                 || format.eColorFormat == OMX_COLOR_FormatYUV420PackedPlanar
                 || format.eColorFormat == OMX_COLOR_FormatYUV420SemiPlanar
                 || format.eColorFormat == OMX_COLOR_FormatYUV420PackedSemiPlanar
+                || format.eColorFormat == OMX_STE_COLOR_FormatYUV420PackedSemiPlanarMB
                 || format.eColorFormat == OMX_TI_COLOR_FormatYUV420PackedSemiPlanar) {
             break;
         }
@@ -3425,11 +3473,11 @@ status_t ACodec::setupVideoDecoder(
     } else {
         err = setSupportedOutputFormat(!haveNativeWindow /* getLegacyFlexibleFormat */);
     }
-
+/*
     if (err != OK) {
         return err;
     }
-
+*/
     // Set the component input buffer number to be |tmp|. If succeed,
     // component will set input port buffer number to be |tmp|. If fail,
     // component will keep the same buffer number as before.

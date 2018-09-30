@@ -12,6 +12,7 @@ cc_library_static {
     cflags: [
         "-Werror",
         "-Wall",
+        "-Wno-#warnings",
     ],
     sanitize: {
         misc_undefined: [
@@ -34,6 +35,7 @@ cc_library_static {
     cflags: [
         "-Werror",
         "-Wall",
+        "-Wno-#warnings",
     ],
     sanitize: {
         misc_undefined: [
@@ -62,6 +64,7 @@ cc_library_shared {
     cflags: [
         "-Werror",
         "-Wall",
+        "-Wno-#warnings",
     ],
 
     shared_libs: [
@@ -202,8 +205,10 @@ cc_library_shared {
     cflags: [
         "-Wno-multichar",
         "-Wno-error=deprecated-declarations",
+        "-Wno-#warnings",
         "-Wall",
         "-DBOARD_CANT_REALLOCATE_OMX_BUFFERS",
+        "-DMETADATA_CAMERA_SOURCE",
     ],
 
     version_script: "exports.lds",
@@ -296,6 +301,12 @@ cc_library {
         debuggable: {
             // enable experiments only in userdebug and eng builds
             cflags: ["-DENABLE_STAGEFRIGHT_EXPERIMENTS"],
+        },
+        lineage: {
+            has_legacy_camera_hal1: {
+                // enable legacy camera HAL1 product option
+                cflags: ["-DCAMCORDER_GRALLOC_SOURCE"],
+            },
         },
     },
 
