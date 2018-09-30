@@ -137,9 +137,10 @@ struct BufferMeta {
         }
 
         // check component returns proper range
-        sp<ABuffer> codec = getBuffer(header, true /* limit */);
+        sp<ABuffer> codec = getBuffer(header, false /* backup */,
+                !(header->nFlags & OMX_BUFFERFLAG_EXTRADATA));
 
-        memcpy(getPointer() + header->nOffset, codec->data(), codec->size());
+        memcpy((OMX_U8 *)mMem->pointer() + header->nOffset, codec->data(), codec->size());
     }
 
     void CopyToOMX(const OMX_BUFFERHEADERTYPE *header) {
@@ -147,14 +148,26 @@ struct BufferMeta {
             return;
         }
 
+        size_t bytesToCopy = header->nFlags & OMX_BUFFERFLAG_EXTRADATA ?
+            header->nAllocLen - header->nOffset : header->nFilledLen;
         memcpy(header->pBuffer + header->nOffset,
-                getPointer() + header->nOffset,
-                header->nFilledLen);
+                (const OMX_U8 *)mMem->pointer() + header->nOffset,
+                bytesToCopy);
     }
 
     // return the codec buffer
     sp<ABuffer> getBuffer(const OMX_BUFFERHEADERTYPE *header, bool limit) {
-        sp<ABuffer> buf = new ABuffer(header->pBuffer, header->nAllocLen);
+        return getBuffer(header, false, limit);
+    }
+
+    // return either the codec or the backup buffer
+    sp<ABuffer> getBuffer(const OMX_BUFFERHEADERTYPE *header, bool backup, bool limit) {
+        sp<ABuffer> buf;
+        if (backup && mMem != NULL) {
+            buf = new ABuffer(mMem->pointer(), mMem->size());
+        } else {
+            buf = new ABuffer(header->pBuffer, header->nAllocLen);
+        }
         if (limit) {
             if (header->nOffset + header->nFilledLen > header->nOffset
                     && header->nOffset + header->nFilledLen <= header->nAllocLen) {
@@ -372,8 +385,10 @@ OMXNodeInstance::OMXNodeInstance(
     mPortMode[1] = IOMX::kPortModePresetByteBuffer;
     mSecureBufferType[0] = kSecureBufferTypeUnknown;
     mSecureBufferType[1] = kSecureBufferTypeUnknown;
+
+
     mIsSecure = AString(name).endsWith(".secure");
-    mLegacyAdaptiveExperiment = false; //ADebug::isExperimentEnabled("legacy-adaptive");
+    mLegacyAdaptiveExperiment = ADebug::isExperimentEnabled("legacy-adaptive");
 }
 
 OMXNodeInstance::~OMXNodeInstance() {
@@ -682,7 +697,6 @@ status_t OMXNodeInstance::setPortMode(OMX_U32 portIndex, IOMX::PortMode mode) {
 
     CLOG_CONFIG(setPortMode, "%s(%d), port %d", asString(mode), mode, portIndex);
 
-    status_t err = OK;
     switch (mode) {
     case IOMX::kPortModeDynamicANWBuffer:
     {
@@ -691,19 +705,17 @@ status_t OMXNodeInstance::setPortMode(OMX_U32 portIndex, IOMX::PortMode mode) {
                 CLOG_INTERNAL(setPortMode, "Legacy adaptive experiment: "
                         "not setting port mode to %s(%d) on output",
                         asString(mode), mode);
-                err = StatusFromOMXError(OMX_ErrorUnsupportedIndex);
-                break;
+                return StatusFromOMXError(OMX_ErrorUnsupportedIndex);
             }
 
-            err = enableNativeBuffers_l(
+            status_t err = enableNativeBuffers_l(
                     portIndex, OMX_TRUE /*graphic*/, OMX_TRUE);
             if (err != OK) {
-                break;
+                return err;
             }
         }
         (void)enableNativeBuffers_l(portIndex, OMX_FALSE /*graphic*/, OMX_FALSE);
-        err = storeMetaDataInBuffers_l(portIndex, OMX_FALSE, NULL);
-        break;
+        return storeMetaDataInBuffers_l(portIndex, OMX_TRUE, NULL);
     }
 
     case IOMX::kPortModeDynamicNativeHandle:
@@ -711,15 +723,13 @@ status_t OMXNodeInstance::setPortMode(OMX_U32 portIndex, IOMX::PortMode mode) {
         if (portIndex != kPortIndexInput) {
             CLOG_ERROR(setPortMode, BAD_VALUE,
                     "%s(%d) mode is only supported on input port", asString(mode), mode);
-            err = BAD_VALUE;
-            break;
+            return BAD_VALUE;
         }
         (void)enableNativeBuffers_l(portIndex, OMX_TRUE /*graphic*/, OMX_FALSE);
         (void)enableNativeBuffers_l(portIndex, OMX_FALSE /*graphic*/, OMX_FALSE);
 
         MetadataBufferType metaType = kMetadataBufferTypeNativeHandleSource;
-        err = storeMetaDataInBuffers_l(portIndex, OMX_TRUE, &metaType);
-        break;
+        return storeMetaDataInBuffers_l(portIndex, OMX_TRUE, &metaType);
     }
 
     case IOMX::kPortModePresetSecureBuffer:
@@ -727,8 +737,7 @@ status_t OMXNodeInstance::setPortMode(OMX_U32 portIndex, IOMX::PortMode mode) {
         // Allow on both input and output.
         (void)storeMetaDataInBuffers_l(portIndex, OMX_FALSE, NULL);
         (void)enableNativeBuffers_l(portIndex, OMX_TRUE /*graphic*/, OMX_FALSE);
-        err = enableNativeBuffers_l(portIndex, OMX_FALSE /*graphic*/, OMX_TRUE);
-        break;
+        return enableNativeBuffers_l(portIndex, OMX_FALSE /*graphic*/, OMX_TRUE);
     }
 
     case IOMX::kPortModePresetANWBuffer:
@@ -736,8 +745,7 @@ status_t OMXNodeInstance::setPortMode(OMX_U32 portIndex, IOMX::PortMode mode) {
         if (portIndex != kPortIndexOutput) {
             CLOG_ERROR(setPortMode, BAD_VALUE,
                     "%s(%d) mode is only supported on output port", asString(mode), mode);
-            err = BAD_VALUE;
-            break;
+            return BAD_VALUE;
         }
 
         // Check if we're simulating legacy mode with metadata mode,
@@ -746,27 +754,26 @@ status_t OMXNodeInstance::setPortMode(OMX_U32 portIndex, IOMX::PortMode mode) {
             if (storeMetaDataInBuffers_l(portIndex, OMX_TRUE, NULL) == OK) {
                 CLOG_INTERNAL(setPortMode, "Legacy adaptive experiment: "
                         "metdata mode enabled successfully");
-                break;
+                return OK;
             }
 
             CLOG_INTERNAL(setPortMode, "Legacy adaptive experiment: "
                     "unable to enable metadata mode on output");
 
-            ALOGE("//mLegacyAdaptiveExperiment = false;");
-            //mLegacyAdaptiveExperiment = false;
+            mLegacyAdaptiveExperiment = false;
         }
 
         // Disable secure buffer and enable graphic buffer
         (void)enableNativeBuffers_l(portIndex, OMX_FALSE /*graphic*/, OMX_FALSE);
-        err = enableNativeBuffers_l(portIndex, OMX_TRUE /*graphic*/, OMX_TRUE);
+        status_t err = enableNativeBuffers_l(portIndex, OMX_TRUE /*graphic*/, OMX_TRUE);
         if (err != OK) {
-            break;
+            return err;
         }
 
         // Not running experiment, or metadata is not supported.
         // Disable metadata mode and use legacy mode.
         (void)storeMetaDataInBuffers_l(portIndex, OMX_FALSE, NULL);
-        break;
+        return OK;
     }
 
     case IOMX::kPortModePresetByteBuffer:
@@ -775,19 +782,15 @@ status_t OMXNodeInstance::setPortMode(OMX_U32 portIndex, IOMX::PortMode mode) {
         (void)enableNativeBuffers_l(portIndex, OMX_TRUE /*graphic*/, OMX_FALSE);
         (void)enableNativeBuffers_l(portIndex, OMX_FALSE /*graphic*/, OMX_FALSE);
         (void)storeMetaDataInBuffers_l(portIndex, OMX_FALSE, NULL);
-        break;
+        return OK;
     }
 
     default:
-        CLOG_ERROR(setPortMode, BAD_VALUE, "invalid port mode %d", mode);
-        err = BAD_VALUE;
         break;
     }
 
-    if (err == OK) {
-        mPortMode[portIndex] = mode;
-    }
-    return err;
+    CLOG_ERROR(setPortMode, BAD_VALUE, "invalid port mode %d", mode);
+    return BAD_VALUE;
 }
 
 status_t OMXNodeInstance::enableNativeBuffers_l(
@@ -1058,47 +1061,29 @@ status_t OMXNodeInstance::useBuffer(
         return BAD_VALUE;
     }
 
-    ALOGD("%s: omxBuffer.mBufferType = %d", __func__, omxBuffer.mBufferType);
+#if defined(STE_HARDWARE) && defined(LOG_DEBUG)
+    ALOGD("%s: omxBuffer.mBufferType = %d, input = %d, mMetadataType[portIndex] = ", __func__, omxBuffer.mBufferType, portIndex == kPortIndexInput, mMetadataType[portIndex]);
+#endif
+
     switch (omxBuffer.mBufferType) {
-        case OMXBuffer::kBufferTypePreset: {
-            if (mPortMode[portIndex] != IOMX::kPortModeDynamicANWBuffer
-                    && mPortMode[portIndex] != IOMX::kPortModeDynamicNativeHandle) {
-                break;
-            }
+        case OMXBuffer::kBufferTypePreset:
             return useBuffer_l(portIndex, NULL, NULL, buffer);
-        }
 
-        case OMXBuffer::kBufferTypeSharedMem: {
-            if (mPortMode[portIndex] != IOMX::kPortModePresetByteBuffer
-                    && mPortMode[portIndex] != IOMX::kPortModeDynamicANWBuffer) {
-                break;
-            }
+        case OMXBuffer::kBufferTypeSharedMem:
             return useBuffer_l(portIndex, omxBuffer.mMem, NULL, buffer);
-        }
 
-        case OMXBuffer::kBufferTypeANWBuffer: {
-            mMetadataType[portIndex] = kMetadataBufferTypeInvalid;
-            if (mPortMode[portIndex] != IOMX::kPortModePresetANWBuffer) {
-                break;
-            }
+        case OMXBuffer::kBufferTypeANWBuffer:
             return useGraphicBuffer_l(portIndex, omxBuffer.mGraphicBuffer, buffer);
-        }
 
         case OMXBuffer::kBufferTypeHidlMemory: {
-                if (mPortMode[portIndex] != IOMX::kPortModePresetByteBuffer
-                        && mPortMode[portIndex] != IOMX::kPortModeDynamicANWBuffer
-                        && mPortMode[portIndex] != IOMX::kPortModeDynamicNativeHandle) {
-                    break;
-                }
                 sp<IHidlMemory> hidlMemory = mapMemory(omxBuffer.mHidlMemory);
                 if (hidlMemory == nullptr) {
                     ALOGE("OMXNodeInstance useBuffer() failed to map memory");
                     return NO_MEMORY;
                 }
                 return useBuffer_l(portIndex, NULL, hidlMemory, buffer);
-        }
+            }
         default:
-            return BAD_VALUE;
             break;
     }
 
@@ -1115,7 +1100,15 @@ status_t OMXNodeInstance::useBuffer_l(
     OMX_BUFFERHEADERTYPE *header;
     OMX_ERRORTYPE err = OMX_ErrorNone;
     bool isMetadata = mMetadataType[portIndex] != kMetadataBufferTypeInvalid;
-
+    ALOGE("%s: isMetadata: %d", __func__, isMetadata);
+    isMetadata = false;
+#if 0
+    if (!isMetadata && mGraphicBufferEnabled[portIndex]) {
+        ALOGE("b/62948670");
+        android_errorWriteLog(0x534e4554, "62948670");
+        return INVALID_OPERATION;
+    }
+#endif
     size_t paramsSize;
     void* paramsPointer;
     if (params != NULL && hParams != NULL) {
@@ -1535,11 +1528,6 @@ status_t OMXNodeInstance::allocateSecureBuffer(
         android_errorWriteLog(0x534e4554, "35467458");
         return BAD_VALUE;
     }
-    if (mPortMode[portIndex] != IOMX::kPortModePresetSecureBuffer) {
-        ALOGE("b/77486542");
-        android_errorWriteLog(0x534e4554, "77486542");
-        return INVALID_OPERATION;
-    }
     BufferMeta *buffer_meta = new BufferMeta(portIndex);
 
     OMX_BUFFERHEADERTYPE *header;
@@ -1701,8 +1689,8 @@ status_t OMXNodeInstance::emptyBuffer_l(
         static_cast<BufferMeta *>(header->pAppPrivate);
 
 #ifdef CAMCORDER_GRALLOC_SOURCE
-    sp<ABuffer> backup = buffer_meta->getBuffer(header, false /* limit */);
-    sp<ABuffer> codec = buffer_meta->getBuffer(header, false /* limit */);
+    sp<ABuffer> backup = buffer_meta->getBuffer(header, true /* backup */, false /* limit */);
+    sp<ABuffer> codec = buffer_meta->getBuffer(header, false /* backup */, false /* limit */);
 
     // convert incoming ANW meta buffers if component is configured for gralloc metadata mode
     // ignore rangeOffset in this case

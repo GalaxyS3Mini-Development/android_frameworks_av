@@ -2145,7 +2145,6 @@ status_t StagefrightRecorder::reset() {
     mLatitudex10000 = -3600000;
     mLongitudex10000 = -3600000;
     mTotalBitRate = 0;
-
     // tracking how long we recorded.
     mDurationRecordedUs = 0;
     mStartedRecordingUs = 0;

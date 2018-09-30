@@ -41,8 +41,12 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_C_INCLUDES:= \
         frameworks/av/media/libstagefright \
-        frameworks/native/include/media/openmax \
-        frameworks/native/include/media/hardware
+        frameworks/native/include/media/openmax
+
+ifneq ($(TARGET_HAS_LEGACY_CAMERA_HAL1), true)
+LOCAL_C_INCLUDES += \
+  	frameworks/native/include/media/hardware
+endif
 
 LOCAL_CFLAGS += -Wno-multichar -Werror -Wall
 
@@ -66,8 +70,12 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_C_INCLUDES:= \
         frameworks/av/media/libstagefright \
-        frameworks/native/include/media/openmax \
-        frameworks/native/include/media/hardware
+        frameworks/native/include/media/openmax
+
+ifneq ($(TARGET_HAS_LEGACY_CAMERA_HAL1), true)
+LOCAL_C_INCLUDES += \
+  	frameworks/native/include/media/hardware
+endif
 
 LOCAL_CFLAGS += -Wno-multichar -Werror -Wall
 
