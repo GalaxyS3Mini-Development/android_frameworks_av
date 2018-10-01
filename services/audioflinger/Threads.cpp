@@ -3346,8 +3346,6 @@ bool AudioFlinger::PlaybackThread::threadLoop()
 
             mActiveTracks.updatePowerState(this);
 
-            updateMetadata_l();
-
             // prevent any changes in effect chain list and in each effect chain
             // during mixing and effect process as the audio buffers could be deleted
             // or modified if an effect is created or deleted
@@ -6532,8 +6530,6 @@ reacquire_wakelock:
 
             mActiveTracks.updatePowerState(this);
 
-            updateMetadata_l();
-
             if (allStopped) {
                 standbyIfNotAlreadyInStandby();
             }
@@ -7125,7 +7121,8 @@ status_t AudioFlinger::RecordThread::start(RecordThread::RecordTrack* recordTrac
         if (recordTrack->isExternalTrack()) {
             mLock.unlock();
             bool silenced;
-            status = AudioSystem::startInput(recordTrack->portId(), &silenced);
+            status = AudioSystem::startInput(mId, &silenced);
+
             mLock.lock();
             // FIXME should verify that recordTrack is still in mActiveTracks
             if (status != NO_ERROR) {
@@ -7157,7 +7154,7 @@ status_t AudioFlinger::RecordThread::start(RecordThread::RecordTrack* recordTrac
 
 startError:
     if (recordTrack->isExternalTrack()) {
-        AudioSystem::stopInput(recordTrack->portId());
+        AudioSystem::stopInput(mId);
     }
     recordTrack->clearSyncStartEvent();
     // FIXME I wonder why we do not reset the state here?
@@ -7965,7 +7962,7 @@ void AudioFlinger::MmapThread::disconnect()
     if (isOutput()) {
         AudioSystem::releaseOutput(mId, streamType(), mSessionId);
     } else {
-        AudioSystem::releaseInput(mPortId);
+        AudioSystem::releaseInput(mId);
     }
 }
 
@@ -8079,7 +8076,7 @@ status_t AudioFlinger::MmapThread::start(const AudioClient& client,
     if (isOutput()) {
         ret = AudioSystem::startOutput(mId, streamType(), mSessionId);
     } else {
-        ret = AudioSystem::startInput(portId, &silenced);
+        ret = AudioSystem::startInput(mId, &silenced);
     }
 
     Mutex::Autolock _l(mLock);
@@ -8091,7 +8088,7 @@ status_t AudioFlinger::MmapThread::start(const AudioClient& client,
             if (isOutput()) {
                 AudioSystem::releaseOutput(mId, streamType(), mSessionId);
             } else {
-                AudioSystem::releaseInput(portId);
+                AudioSystem::releaseInput(mId);
             }
             mLock.lock();
         } else {
@@ -8164,8 +8161,8 @@ status_t AudioFlinger::MmapThread::stop(audio_port_handle_t handle)
         AudioSystem::stopOutput(mId, streamType(), track->sessionId());
         AudioSystem::releaseOutput(mId, streamType(), track->sessionId());
     } else {
-        AudioSystem::stopInput(track->portId());
-        AudioSystem::releaseInput(track->portId());
+        AudioSystem::stopInput(mId);
+        AudioSystem::releaseInput(mId);
     }
     mLock.lock();
 
@@ -8251,8 +8248,6 @@ bool AudioFlinger::MmapThread::threadLoop()
         checkInvalidTracks_l();
 
         mActiveTracks.updatePowerState(this);
-
-        updateMetadata_l();
 
         lockEffectChains_l(effectChains);
         for (size_t i = 0; i < effectChains.size(); i ++) {

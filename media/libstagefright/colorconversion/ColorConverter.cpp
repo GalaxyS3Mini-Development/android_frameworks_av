@@ -174,6 +174,7 @@ status_t ColorConverter::convert(
     }
 
     status_t err;
+    ALOGE("%s: mSrcFormat = %d", __func__, mSrcFormat);
 
     switch (mSrcFormat) {
         case OMX_COLOR_FormatYUV420Planar:
@@ -215,6 +216,7 @@ status_t ColorConverter::convert(
 
 #ifdef STE_HARDWARE
         case OMX_STE_COLOR_FormatYUV420PackedSemiPlanarMB:
+            ALOGE("%s: mSrcFormat = OMX_STE_COLOR_FormatYUV420PackedSemiPlanarMB", __func__);
             err = convertSTEYUV420PackedSemiPlanarMB(src, dst);
             break;
 #endif
@@ -1004,36 +1006,20 @@ status_t ColorConverter::convertSTEYUV420PackedSemiPlanarMB(
                         cr[2] = cr[3] = ((chromaWord1 >> 24) & 0xff);
 
                         for (i = 0; i < 4; i++) {
-                            int32_t rW,gW,bW;
+                            int32_t rW, gW, bW;
 
                             rW = 298 * y[i] + 408 * cr[i] - 57059;
                             gW = 298 * y[i] - 100 * cb[i] - 208 * cr[i] + 34713;
                             bW = 298 * y[i] + 516 * cb[i] - 70887;
 
-                            if (rW < 0) {
-                                r[i] = 0;
-                            } else if (rW >= 65536) {
-                                r[i] = 255;
-                            } else {
-                                r[i] = (rW >> 8);
-                            }
-                            if (gW < 0) {
-                                g[i] = 0;
-                            } else if (gW >= 65536) {
-                                g[i] = 255;
-                            } else {
-                                g[i] = (gW >> 8);
-                            }
-                            if (bW < 0) {
-                                b[i] = 0;
-                            } else if (bW >= 65536) {
-                                b[i] = 255;
-                            } else {
-                                b[i] = (bW >> 8);
-                            }
-                            r[i] >>= 3;
-                            g[i] >>= 2;
-                            b[i] >>= 3;
+                            if (rW < 0) r[i] = 0;
+                            else r[i] = (rW >> 11) & 0xff;
+
+                            if (gW < 0) g[i] = 0;
+                            else g[i] = (gW >> 10) & 0xff;
+
+                            if (bW < 0) b[i] = 0;
+                            else b[i] = (bW >> 11) & 0xff;
                         }
                         for (i = 0; i < 4; i += 2) {
                             // Check for cropping on the x axis

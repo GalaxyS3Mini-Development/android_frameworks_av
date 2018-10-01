@@ -343,7 +343,7 @@ status_t AudioFlinger::openMmapStream(MmapStreamInterface::stream_direction_t di
         if (direction == MmapStreamInterface::DIRECTION_OUTPUT) {
             AudioSystem::releaseOutput(io, streamType, actualSessionId);
         } else {
-            AudioSystem::releaseInput(portId);
+            AudioSystem::releaseInput(io);
         }
         ret = NO_INIT;
     }
@@ -1688,7 +1688,7 @@ sp<media::IAudioRecord> AudioFlinger::createRecord(const CreateRecordInput& inpu
     // release previously opened input if retrying.
     if (output.inputId != AUDIO_IO_HANDLE_NONE) {
         recordTrack.clear();
-        AudioSystem::releaseInput(portId);
+        AudioSystem::releaseInput(output.inputId);
         output.inputId = AUDIO_IO_HANDLE_NONE;
         output.selectedDeviceId = input.selectedDeviceId;
         portId = AUDIO_PORT_HANDLE_NONE;
@@ -1767,7 +1767,7 @@ Exit:
         }
         recordTrack.clear();
         if (output.inputId != AUDIO_IO_HANDLE_NONE) {
-            AudioSystem::releaseInput(portId);
+            AudioSystem::releaseInput(output.inputId);
         }
     }
 
