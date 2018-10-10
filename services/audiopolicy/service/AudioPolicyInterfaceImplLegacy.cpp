@@ -672,13 +672,11 @@ float AudioPolicyService::getStreamVolumeDB(
     return NO_ERROR;
 }
 
-#if 0
 status_t AudioPolicyService::listAudioSessions(audio_stream_type_t streams,
                                                Vector< sp<AudioSessionInfo>> &sessions)
 {
     return NO_ERROR;
 }
-#endif
 
 status_t AudioPolicyService::setSurroundFormatEnabled(audio_format_t audioFormat __unused, bool enabled __unused)
 {
