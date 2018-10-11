@@ -70,3 +70,10 @@ LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/include
 LOCAL_MODULE := libaudiohal
 
 include $(BUILD_SHARED_LIBRARY)
+
+include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES :=
+LOCAL_MODULE := libaudiohal@2.0
+
+include $(BUILD_SHARED_LIBRARY)
