@@ -72,7 +72,6 @@ cc_library_shared {
         "-Wall",
         "-Wno-unused-parameter",
         "-Wno-documentation",
-        "-DCAMCORDER_GRALLOC_SOURCE"
     ],
 
     sanitize: {
