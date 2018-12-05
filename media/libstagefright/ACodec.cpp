@@ -883,6 +883,8 @@ status_t ACodec::allocateBuffersOnPort(OMX_U32 portIndex) {
         if (err == OK) {
             const IOMX::PortMode &mode = mPortMode[portIndex];
             size_t bufSize = def.nBufferSize;
+            ALOGI("%s: input (%d), mode = %d", __func__, portIndex == kPortIndexInput, mode);
+
             // Always allocate VideoNativeMetadata if using ANWBuffer.
             // OMX might use gralloc source internally, but we don't share
             // metadata buffer with OMX, OMX has its own headers.
