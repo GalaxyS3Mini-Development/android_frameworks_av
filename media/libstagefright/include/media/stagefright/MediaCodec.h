@@ -377,7 +377,7 @@ private:
 
     MediaCodec(const sp<ALooper> &looper, pid_t pid, uid_t uid);
 
-    static sp<CodecBase> GetCodecBase(const AString &name, const char *owner = nullptr);
+    static sp<CodecBase> GetCodecBase(const AString &name);
 
     static status_t PostAndAwaitResponse(
             const sp<AMessage> &msg, sp<AMessage> *response);
