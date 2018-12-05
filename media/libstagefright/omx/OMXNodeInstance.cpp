@@ -385,8 +385,8 @@ OMXNodeInstance::OMXNodeInstance(
     mPortMode[1] = IOMX::kPortModePresetByteBuffer;
     mSecureBufferType[0] = kSecureBufferTypeUnknown;
     mSecureBufferType[1] = kSecureBufferTypeUnknown;
-    mGraphicBufferEnabled[0] = false;
-    mGraphicBufferEnabled[1] = false;
+
+
     mIsSecure = AString(name).endsWith(".secure");
     mLegacyAdaptiveExperiment = ADebug::isExperimentEnabled("legacy-adaptive");
 }
@@ -510,8 +510,6 @@ status_t OMXNodeInstance::freeNode() {
             LOG_ALWAYS_FATAL("unknown state %s(%#x).", asString(state), state);
             break;
     }
-
-    Mutex::Autolock _l(mLock);
 
     status_t err = mOwner->freeNode(this);
 
@@ -827,12 +825,6 @@ status_t OMXNodeInstance::enableNativeBuffers_l(
                     enable ? kSecureBufferTypeNativeHandle : kSecureBufferTypeOpaque;
             } else if (mSecureBufferType[portIndex] == kSecureBufferTypeUnknown) {
                 mSecureBufferType[portIndex] = kSecureBufferTypeOpaque;
-            }
-        } else {
-            if (err == OMX_ErrorNone) {
-                mGraphicBufferEnabled[portIndex] = enable;
-            } else if (enable) {
-                mGraphicBufferEnabled[portIndex] = false;
             }
         }
     } else {
@@ -1302,22 +1294,22 @@ status_t OMXNodeInstance::useGraphicBuffer_l(
                 portIndex, graphicBuffer, buffer);
     }
 
-    if (!mGraphicBufferEnabled[portIndex]) {
-        // Report error if this is not in graphic buffer mode.
-        ALOGE("b/62948670");
-        android_errorWriteLog(0x534e4554, "62948670");
-        return INVALID_OPERATION;
-    }
-
     // See if the newer version of the extension is present.
     OMX_INDEXTYPE index;
+#ifndef STE_HARDWARE
+    /* Meticulus:
+     * We don't support useAndroidNativeBuffer2 and although it works fine
+     * to have this in, we are always going to fall back
+     * to useAndroidNativeBuffer everytime. Removing this might speed things
+     * up a little bit.
+     */
     if (OMX_GetExtensionIndex(
             mHandle,
             const_cast<OMX_STRING>("OMX.google.android.index.useAndroidNativeBuffer2"),
             &index) == OMX_ErrorNone) {
         return useGraphicBuffer2_l(portIndex, graphicBuffer, buffer);
     }
-
+#endif
     OMX_STRING name = const_cast<OMX_STRING>(
         "OMX.google.android.index.useAndroidNativeBuffer");
     OMX_ERRORTYPE err = OMX_GetExtensionIndex(mHandle, name, &index);
@@ -1592,15 +1584,12 @@ status_t OMXNodeInstance::freeBuffer(
     }
     BufferMeta *buffer_meta = static_cast<BufferMeta *>(header->pAppPrivate);
 
-    // Invalidate buffers in the client side first before calling OMX_FreeBuffer.
-    // If not, pending events in the client side might access the buffers after free.
-    invalidateBufferID(buffer);
-
     OMX_ERRORTYPE err = OMX_FreeBuffer(mHandle, portIndex, header);
     CLOG_IF_ERROR(freeBuffer, err, "%s:%u %#x", portString(portIndex), portIndex, buffer);
 
     delete buffer_meta;
     buffer_meta = NULL;
+    invalidateBufferID(buffer);
 
     return StatusFromOMXError(err);
 }
