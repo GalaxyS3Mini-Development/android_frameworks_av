@@ -217,7 +217,6 @@ CameraSource::CameraSource(
       mNumFramesReceived(0),
       mLastFrameTimestampUs(0),
       mStarted(false),
-      mEos(false),
       mNumFramesEncoded(0),
       mTimeBetweenFrameCaptureUs(0),
       mFirstFrameTimeUs(0),
@@ -881,7 +880,6 @@ status_t CameraSource::reset() {
     {
         Mutex::Autolock autoLock(mLock);
         mStarted = false;
-        mEos = false;
         mStopSystemTimeUs = -1;
         mFrameAvailableCondition.signal();
 
@@ -1077,7 +1075,7 @@ status_t CameraSource::read(
 
     {
         Mutex::Autolock autoLock(mLock);
-        while (mStarted && !mEos && mFramesReceived.empty()) {
+        while (mStarted && mFramesReceived.empty()) {
             if (NO_ERROR !=
                 mFrameAvailableCondition.waitRelative(mLock,
                     mTimeBetweenFrameCaptureUs * 1000LL + CAMERA_SOURCE_TIMEOUT_NS)) {
@@ -1092,9 +1090,6 @@ status_t CameraSource::read(
         }
         if (!mStarted) {
             return OK;
-        }
-        if (mFramesReceived.empty()) {
-            return ERROR_END_OF_STREAM;
         }
         frame = *mFramesReceived.begin();
         mFramesReceived.erase(mFramesReceived.begin());
@@ -1134,8 +1129,6 @@ bool CameraSource::shouldSkipFrameLocked(int64_t timestampUs) {
     if (mStopSystemTimeUs != -1 && timestampUs >= mStopSystemTimeUs) {
         ALOGV("Drop Camera frame at %lld  stop time: %lld us",
                 (long long)timestampUs, (long long)mStopSystemTimeUs);
-        mEos = true;
-        mFrameAvailableCondition.signal();
         return true;
     }
 
