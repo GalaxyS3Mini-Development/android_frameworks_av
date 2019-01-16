@@ -1412,8 +1412,6 @@ MetadataBufferType CameraSource::metaDataStoredInVideoBuffers() const {
     // Output buffers will contain metadata if camera sends us buffer in metadata mode or via
     // buffer queue.
     switch (mVideoBufferMode) {
-        case hardware::ICamera::VIDEO_BUFFER_MODE_DATA_CALLBACK_METADATA:
-            return kMetadataBufferTypeNativeHandleSource;
         case hardware::ICamera::VIDEO_BUFFER_MODE_BUFFER_QUEUE:
             return kMetadataBufferTypeANWBuffer;
         default:
