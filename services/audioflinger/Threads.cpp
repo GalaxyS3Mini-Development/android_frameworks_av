@@ -583,12 +583,15 @@ status_t AudioFlinger::ThreadBase::sendConfigEvent_l(sp<ConfigEvent>& event)
     if (event->mRequiresSystemReady && !mSystemReady) {
         event->mWaitStatus = false;
         mPendingConfigEvents.add(event);
+	ALOGE("%s: %d: return status = %d", __func__, __LINE__, status);
         return status;
     }
     mConfigEvents.add(event);
     ALOGV("sendConfigEvent_l() num events %zu event %d", mConfigEvents.size(), event->mType);
     mWaitWorkCV.signal();
     mLock.unlock();
+    ALOGE("%s: %d: event->mStatus = %d", __func__, __LINE__, status);
+
     {
         Mutex::Autolock _l(event->mLock);
         while (event->mWaitStatus) {
@@ -600,6 +603,8 @@ status_t AudioFlinger::ThreadBase::sendConfigEvent_l(sp<ConfigEvent>& event)
         status = event->mStatus;
     }
     mLock.lock();
+
+    ALOGE("%s: %d: event->mStatus = %d", __func__, __LINE__, status);
     return status;
 }
 
@@ -667,6 +672,7 @@ status_t AudioFlinger::ThreadBase::sendCreateAudioPatchConfigEvent(
     Mutex::Autolock _l(mLock);
     sp<ConfigEvent> configEvent = (ConfigEvent *)new CreateAudioPatchConfigEvent(*patch, *handle);
     status_t status = sendConfigEvent_l(configEvent);
+    ALOGE("%s: %d: sendConfigEvent_l returns %d", __func__, __LINE__, status);
     if (status == NO_ERROR) {
         CreateAudioPatchConfigEventData *data =
                                         (CreateAudioPatchConfigEventData *)configEvent->mData.get();
@@ -733,6 +739,7 @@ void AudioFlinger::ThreadBase::processConfigEvents_l()
             CreateAudioPatchConfigEventData *data =
                                             (CreateAudioPatchConfigEventData *)event->mData.get();
             event->mStatus = createAudioPatch_l(&data->mPatch, &data->mHandle);
+            ALOGE("%s: %d: createAudioPatch_l returns %d", __func__, __LINE__, event->mStatus);
             const DeviceTypeSet newDevices = getDeviceTypes();
             mLocalLog.log("CFG_EVENT_CREATE_AUDIO_PATCH: old device %s (%s) new device %s (%s)",
                     dumpDeviceTypes(oldDevices).c_str(), toString(oldDevices).c_str(),
@@ -4182,7 +4189,8 @@ status_t AudioFlinger::MixerThread::createAudioPatch_l(const struct audio_patch 
     } else {
         status = PlaybackThread::createAudioPatch_l(patch, handle);
     }
-    return status;
+    ALOGE("%s: %d: returning %d", __func__, __LINE__, status);
+    return NO_ERROR;//status;
 }
 
 status_t AudioFlinger::PlaybackThread::createAudioPatch_l(const struct audio_patch *patch,
@@ -4275,7 +4283,10 @@ status_t AudioFlinger::PlaybackThread::createAudioPatch_l(const struct audio_pat
     if (configChanged) {
         sendIoConfigEvent_l(AUDIO_OUTPUT_CONFIG_CHANGED);
     }
-    return status;
+
+    ALOGE("%s: %d: returning %d", __func__, __LINE__, status);
+
+    return NO_ERROR;//status;
 }
 
 status_t AudioFlinger::MixerThread::releaseAudioPatch_l(const audio_patch_handle_t handle)
@@ -8610,7 +8621,10 @@ status_t AudioFlinger::RecordThread::createAudioPatch_l(const struct audio_patch
         track->logEndInterval();
         track->logBeginInterval(pathSourcesAsString);
     }
-    return status;
+
+    ALOGE("%s: %d: returning %d", __func__, __LINE__, status);
+
+    return NO_ERROR;//status;
 }
 
 status_t AudioFlinger::RecordThread::releaseAudioPatch_l(const audio_patch_handle_t handle)
@@ -8729,8 +8743,7 @@ AudioFlinger::MmapThread::MmapThread(
     readHalParameters_l();
 }
 
-AudioFlinger::MmapThread::~MmapThread()
-{
+AudioFlinger::MmapThread::~MmapThread(){
     releaseWakeLock_l();
 }
 
@@ -9261,7 +9274,10 @@ status_t AudioFlinger::MmapThread::createAudioPatch_l(const struct audio_patch *
         mPatch = *patch;
         mDeviceId = deviceId;
     }
-    return status;
+
+    ALOGE("%s: %d: returning %d", __func__, __LINE__, status);
+
+    return NO_ERROR;//status;
 }
 
 status_t AudioFlinger::MmapThread::releaseAudioPatch_l(const audio_patch_handle_t handle)
