@@ -4842,9 +4842,10 @@ status_t ACodec::verifySupportForProfileAndLevel(
         }
 
         if (index == kMaxIndicesToCheck) {
-            ALOGW("[%s] stopping checking profiles after %u: %x/%x",
-                    mComponentName.c_str(), index,
+            ALOGW("[%s] %d: stopping checking profiles after %u: %x/%x",
+                    mComponentName.c_str(), __LINE__, index,
                     params.eProfile, params.eLevel);
+            return OK;
         }
     }
     return ERROR_UNSUPPORTED;
